@@ -99,7 +99,7 @@ tokenizer_factory = RBPETokenizer.from_params(
     force_train=True
 )
 
-# Prepare the tokenizer
+# Prepare the tokenizer!
 tokenizer = tokenizer_factory.prepare()
 
 # Test the tokenizer
