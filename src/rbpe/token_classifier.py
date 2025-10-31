@@ -1,5 +1,4 @@
 import yaml
-import json
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -16,27 +15,19 @@ logger = logging.getLogger('BPE')
 class TokenClassifier:
     def __init__(
         self,
-        token_id_language_map_path: str,
-        token_text_language_map_path: str,
         min_reusable_ids: int,
-        vocabulary_languages_path: str,
         old_tokenizer_model_id: str,
         hf_api_key: str = None,
-        save_classified_tokens: bool = True,
         target_language_scripts: list = ["arabic"],
-        preserved_languages_scripts: list = ["arabic", "latin", "greek"],
+        preserved_languages_scripts: list = ["latin", "greek"],
     ):
         """
         Initialize TokenClassifier.
 
         Args:
-            token_id_language_map_path: Path to save token IDs classified by language
-            token_text_language_map_path: Path to save token text classified by language
             min_reusable_ids: Minimum number of reusable IDs needed
-            vocabulary_languages_path: Path to save classified vocabulary languages list
             old_tokenizer_model_id: HuggingFace model ID for base tokenizer
             hf_api_key: Optional HuggingFace API key
-            save_classified_tokens: Whether to save classification results to files
             target_language_scripts: Target language scripts of the new tokenizer and that will be preserved
             preserved_languages_scripts: Language scripts to preserve and exclude from reuse
         """
@@ -46,29 +37,22 @@ class TokenClassifier:
         self.script_to_blocks = self.data_reader.read_json(self.data_reader.script_to_blocks_file)
         
         self._validate_params(
-            token_id_language_map_path,
-            token_text_language_map_path,
             min_reusable_ids,
-            vocabulary_languages_path,
             target_language_scripts,
             preserved_languages_scripts,
             old_tokenizer_model_id,
             hf_api_key,
-            save_classified_tokens
         )
         
-        self.token_id_language_map_path = token_id_language_map_path
-        self.token_text_language_map_path = token_text_language_map_path
         self.min_reusable_ids = min_reusable_ids
-        self.vocabulary_languages_path = vocabulary_languages_path
         self.target_language_scripts = self._map_languages_to_aliases(target_language_scripts)
         self.preserved_languages_scripts = self._map_languages_to_aliases(preserved_languages_scripts)
+        # Preserve both target and preserved languages
         self.preserved_languages_set = set(self.preserved_languages_scripts) | set(self.target_language_scripts)
         self.preserved_languages_scripts = list(self.preserved_languages_set)
         self.old_tokenizer_model_id = old_tokenizer_model_id
         self.hf_api_key = hf_api_key
         self.reusable_languages = []
-        self.save_classified_tokens = save_classified_tokens
         self.classified_ids_with_ranges = None
         self.classified_tokens_with_ranges = None
         self.all_languages_data = None
@@ -77,15 +61,11 @@ class TokenClassifier:
 
     def _validate_params(
         self,
-        token_id_language_map_path: str,
-        token_text_language_map_path: str,
         min_reusable_ids: int,
-        vocabulary_languages_path: str,
         target_language_scripts: list,
         preserved_languages_scripts: list,
         old_tokenizer_model_id: str,
         hf_api_key: str = None,
-        save_classified_tokens: bool = True
     ):
         """
         Validate all initialization parameters.
@@ -294,9 +274,9 @@ class TokenClassifier:
         
         return tokenizer_data
 
-    def _classify_and_save_tokens(self) -> None:
+    def _classify_tokens(self) -> None:
         """
-        Classify tokens by language and optionally save the results to JSON files.
+        Classify vocabulary tokens by language.
         """
         # Load and process the data
         tokenizer_data = self._load_tokenizer(self.old_tokenizer_model_id)
@@ -324,17 +304,6 @@ class TokenClassifier:
                 "tokens": tokens
             }
         
-        if self.save_classified_tokens:
-            # Save classified token IDs with ranges
-            with open(self.token_id_language_map_path, "w") as json_file:
-                json.dump(self.classified_ids_with_ranges, json_file, indent=4)
-            logger.info(f"Saved classified token IDs to {self.token_id_language_map_path}")
-            
-            # Save classified tokens with ranges
-            with open(self.token_text_language_map_path, "w") as json_file:
-                json.dump(self.classified_tokens_with_ranges, json_file, indent=4)
-            logger.info(f"Saved classified tokens with ranges to {self.token_text_language_map_path}")
-        
         # Log statistics
         total_tokens = len(tokenizer_data['model']['vocab'])
         total_classified_tokens = sum(len(tokens) for tokens in classified_tokens_ids.values())
@@ -345,22 +314,17 @@ class TokenClassifier:
 
     def _analyze_tokenizer_languages(self) -> tuple:
         """
-        Analyze JSON file with tokenizer languages and their corresponding reusable IDs.
+        Analyze classified tokens by language and their corresponding reusable IDs.
         Returns total reusable IDs, selected languages, total IDs available, and all languages.
         """
-        self._classify_and_save_tokens()
+        self._classify_tokens()
         # all scripts are reusable besides common, inherited, and braille scripts
         include_languages = [script.lower() for script in self.script_name_to_alias.keys() if script not in ['common', 'inherited', 'braille']]
         include_languages.append("cjk")
         include_languages.append("dingbats") # to match legacy token classifcation
         logger.debug(f"Include languages: {include_languages}")
         
-        # Use in-memory data if not saving to files
-        if not self.save_classified_tokens:
-            language_data = self.classified_ids_with_ranges
-        else:
-            with open(self.token_id_language_map_path, 'r') as file:
-                language_data = json.load(file)
+        language_data = self.classified_ids_with_ranges
         
         # CJK case: if any CJK scripts are preserved, add remaining CJK scripts to the preserved languages
         # CJK scripts overlap a lot in unicode blocks. It is safer to preserve all CJK scripts when one is needed to be preserved.
@@ -412,21 +376,19 @@ class TokenClassifier:
         
         return total_reusable_ids, selected_languages, total_ids_available, all_languages
 
-    def _write_sorted_languages_to_file(self, all_languages: list, output_file: str) -> None:
+    def write_sorted_languages_to_file(self, all_languages: list, output_file: str) -> None:
         """Write sorted languages and their ID counts to a file or store in memory."""
         sorted_all_languages = sorted(all_languages, key=lambda x: x[1], reverse=False)
-        if self.save_classified_tokens:
-            with open(output_file, 'w') as file:
-                for language, id_count in sorted_all_languages:
-                    file.write(f"{language}\t{id_count}\n")
-        self.all_languages_data = sorted_all_languages
+        with open(output_file, 'w') as file:
+            for language, id_count in sorted_all_languages:
+                file.write(f"{language}\t{id_count}\n")
 
     def _get_reusable_languages(self) -> None:
         """
         Analyze tokenizer languages and logs statistics about reusable IDs.
-        Also writes sorted languages to output file if save_classified_tokens is True.
         """
         total_ids, selected_languages, total_ids_available, all_languages = self._analyze_tokenizer_languages()
+        self.all_languages_data = all_languages
         
         logger.info(f"Total number of IDs available: {total_ids_available}")
         logger.info(f"Total number of reusable IDs (excluding languages containing {self.preserved_languages_scripts}): {total_ids}")
@@ -434,11 +396,6 @@ class TokenClassifier:
         for lang in selected_languages:
             logger.info(f"  - {lang}")
         logger.info(f"Total number of languages selected for reuse: {len(selected_languages)}")
-
-        if self.vocabulary_languages_path:
-            self._write_sorted_languages_to_file(all_languages, self.vocabulary_languages_path)
-            if self.save_classified_tokens:
-                logger.info(f"Sorted languages and their ID counts have been written to {self.vocabulary_languages_path}")
 
     def _read_text_file(self, text_file_path: str) -> dict:
         """Reads the text file and returns a dictionary of language counts."""
@@ -473,21 +430,10 @@ class TokenClassifier:
                 reusable_languages_with_ranges_dict: dict of {language: list of [lower_bound: int, upper_bound: int]},
                 total_reusable_language_count: int
             )
-            
-        Raises:
-            ValueError: If the classified tokens JSON file is not found
         """
         self._get_reusable_languages()
         
-        # Use in-memory data if not saving to files
-        if not self.save_classified_tokens:
-            classified_tokens_with_ranges = self.classified_tokens_with_ranges
-        else:
-            try:
-                with open(self.token_text_language_map_path, 'r', encoding='utf-8') as f:
-                    classified_tokens_with_ranges = json.load(f)
-            except FileNotFoundError:
-                raise ValueError(f"Classified tokens file not found at {self.token_text_language_map_path}. Ensure tokens are classified and the file exists.")
+        classified_tokens_with_ranges = self.classified_tokens_with_ranges
 
         reusable_languages_with_ranges_dict = {}
         total_reusable_language_count = 0

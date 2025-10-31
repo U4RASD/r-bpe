@@ -6,6 +6,7 @@ from datasets import Dataset, DatasetDict, load_from_disk
 from .token_classifier import TokenClassifier
 from huggingface_hub import login
 import logging
+from pathlib import Path
 
 logger = logging.getLogger('BPE')
 
@@ -14,7 +15,6 @@ class DataCleaner:
         self,
         data_dir: str,
         reusable_languages_with_ranges: dict,
-        output_reusable_samples: str = None,
         cleaned_data_dir: str = None
     ):
         """
@@ -23,22 +23,22 @@ class DataCleaner:
         Args:
             data_dir (str): Path to the dataset directory.
             reusable_languages_with_ranges (dict): Dictionary containing reusable languages and their character ranges.
-            output_reusable_samples (str, optional): Path to save samples containing reusable languages.
             cleaned_data_dir (str, optional): Directory to save the cleaned dataset.
         """
         logger.info(f"Initializing DataCleaner with {len(reusable_languages_with_ranges)} reusable languages")
         self.dataset = self.load_dataset(data_dir)
         self.language_ranges = reusable_languages_with_ranges
-        self.reusable_file = self._initialize_reusable_file(output_reusable_samples)
+        self.samples_with_reusable_langs_file = self._initialize_reusable_file(cleaned_data_dir)
         self.cleaned_data_dir = cleaned_data_dir
 
-    def _initialize_reusable_file(self, output_path: str):
+    def _initialize_reusable_file(self, cleaned_data_dir: str):
         """Initializes the samples containing reusable languages file if a path is provided."""
-        if output_path:
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            logger.debug(f"Initializing samples containing reusable languages file at: {output_path}")
-            return open(output_path, 'w', encoding='utf-8')
-        logger.debug("No samples containing reusable languages file path provided, skipping reusable sample logging")
+        if cleaned_data_dir:
+            filepath = Path(cleaned_data_dir) / 'samples_with_reusable_langs.txt'
+            os.makedirs(filepath.parent, exist_ok=True)
+            logger.debug(f"Initializing samples containing reusable languages file at: {filepath}")
+            return open(filepath, 'w', encoding='utf-8')
+        logger.debug("No cleaned_data_dir provided, skipping logging samples with reusable languages")
         return None
 
     def detect_languages(self, text: str) -> set:
@@ -93,14 +93,15 @@ class DataCleaner:
             else:
                 self._process_single_split()
         finally:
-            if self.reusable_file:
-                self.reusable_file.close()
+            if self.samples_with_reusable_langs_file:
+                self.samples_with_reusable_langs_file.close()
 
         if self.cleaned_data_dir:
             os.makedirs(self.cleaned_data_dir, exist_ok=True)
             logger.info(f"\nSaving filtered dataset to: {self.cleaned_data_dir}")
             self.filtered_dataset.save_to_disk(self.cleaned_data_dir)
             logger.debug("Dataset saved successfully!")
+        return self.filtered_dataset
 
     def _process_with_splits(self):
         """Processes each split in the dataset individually."""
@@ -133,7 +134,7 @@ class DataCleaner:
                     
                     if has_reusable_lang:
                         reusable_count += 1
-                        if self.reusable_file:
+                        if self.samples_with_reusable_langs_file:
                             self._log_reusable_sample(split_name, idx, detected_langs, str(sample['messages']))
                     else:
                         filtered_samples.append(sample)
@@ -144,7 +145,7 @@ class DataCleaner:
                     
                     if detected_langs.intersection(self.language_ranges.keys()):
                         reusable_count += 1
-                        if self.reusable_file:
+                        if self.samples_with_reusable_langs_file:
                             self._log_reusable_sample(split_name, idx, detected_langs, text)
                     else:
                         filtered_samples.append(sample)
@@ -192,7 +193,7 @@ class DataCleaner:
                 
                 if has_reusable_lang:
                     reusable_count += 1
-                    if self.reusable_file:
+                    if self.samples_with_reusable_langs_file:
                         self._log_reusable_sample(None, idx, detected_langs, str(sample['messages']))
                 else:
                     filtered_samples.append(sample)
@@ -203,7 +204,7 @@ class DataCleaner:
                 
                 if detected_langs.intersection(self.language_ranges.keys()):
                     reusable_count += 1
-                    if self.reusable_file:
+                    if self.samples_with_reusable_langs_file:
                         self._log_reusable_sample(None, idx, detected_langs, text)
                 else:
                     filtered_samples.append(sample)
@@ -218,9 +219,9 @@ class DataCleaner:
     def _log_reusable_sample(self, split_name, idx, detected_langs, text):
         """Logs details of samples containing reusable languages."""
         if split_name:
-            self.reusable_file.write(f"Split: {split_name}\n")
-        self.reusable_file.write(f"Index: {idx}\n")
-        self.reusable_file.write(f"Detected Languages: {', '.join(detected_langs)}\n")
-        self.reusable_file.write(f"Text: {text}\n")
-        self.reusable_file.write("-" * 80 + "\n")
-        self.reusable_file.flush()
+            self.samples_with_reusable_langs_file.write(f"Split: {split_name}\n")
+        self.samples_with_reusable_langs_file.write(f"Index: {idx}\n")
+        self.samples_with_reusable_langs_file.write(f"Detected Languages: {', '.join(detected_langs)}\n")
+        self.samples_with_reusable_langs_file.write(f"Text: {text}\n")
+        self.samples_with_reusable_langs_file.write("-" * 80 + "\n")
+        self.samples_with_reusable_langs_file.flush()

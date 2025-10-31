@@ -1,7 +1,7 @@
 model_id: "meta-llama/Llama-3.1-8B"
-hf_token: "XXXXXXXXXXXXXXXXXXXXXXXXXXXX" # Put your Hugging Face token here
-output_dir: "./outputs/rbpe-llama3"
+hf_token: "XXXXXXXXXXXXXXXXXXXXXXXXXXXX" # Put your HuggingFace access token here
 training_data_dir: "/data"
+clean_data: true
 cleaned_data_dir: "/cleaned_data"
 min_reusable_count: 30000
 target_language_scripts: # Target language scripts of the new tokenizer and that will be preserved, unicode script names or aliases
@@ -9,6 +9,7 @@ target_language_scripts: # Target language scripts of the new tokenizer and that
 preserved_languages_scripts: # Language scripts to preserve and exclude from reuse, unicode script names or aliases
   - latin
   - greek
+apply_rbpe_arabic_norm: true # Apply the R-BPE Arabic normalization during encoding (default: true). Set to false to disable.
 special_tokens:
   pad_token: <PAD>
   unk_token: <UNK>
@@ -17,8 +18,5 @@ special_tokens:
   mask_token: <MASK_TOKEN>
   sep_token: <SEP>
   cls_token: <CLS>
-force:
-  classify: true
-  clean: true
-  train: true
-  mapping: true
+additional_special_tokens:
+  - <SPECIAL_TOKEN>               

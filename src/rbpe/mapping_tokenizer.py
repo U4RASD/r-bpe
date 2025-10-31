@@ -6,6 +6,7 @@ from tqdm import tqdm
 import argparse
 import json
 import re
+import os
 
 from .token_classifier import TokenClassifier
 from .utils.unicode_normalizer import UnicodeNormalizer
@@ -21,47 +22,71 @@ if not logger.handlers:
     logger = setup_logger('BPE')
 
 class MappingTokenizer:
-    def __init__(self, new_tokenizer_path, old_tokenizer_model_id, token_id_language_map_path, reusable_languages, target_language_scripts_ranges,
-                 cache_dir="./huggingface", new_to_old_map_path=None, old_to_new_map_path=None, 
-                 replacement_character_map_path=None, new_tokenizer_additional_special_tokens=None, save_maps=False, debug_mode=False):
+    def __init__(
+        self,
+        new_tokenizer,
+        old_tokenizer,
+        token_id_language_map,
+        reusable_languages,
+        target_language_scripts_ranges,
+        new_to_old_map_path=None,
+        old_to_new_map_path=None,
+        replacement_character_map_path=None,
+        new_tokenizer_additional_special_tokens=None,
+        apply_normalization=True,
+        debug_mode=False,
+        new_tokenizer_path: str = None,
+        old_tokenizer_path: str = None,
+    ):
         """
         Initialize the MappingTokenizer.
 
         Args:
-            new_tokenizer_path (str): Path to the new tokenizer folder
-            old_tokenizer_model_id (str): Model ID for the old tokenizer
-            token_id_language_map_path (str): Path to JSON file with languages and their corresponding token IDs from the old tokenizer
+            new_tokenizer (AutoTokenizer): The new tokenizer object
+            old_tokenizer (AutoTokenizer): The old tokenizer object
+            token_id_language_map (dict): Dictionary with languages and their corresponding token IDs from the old tokenizer
             reusable_languages (List[str]): List of languages whose token ids will be reused
             target_language_scripts_ranges (List[tuple]): List of Unicode ranges (lower_bound, upper_bound) for target language scripts
-            cache_dir (str): Directory to use to cache tokenizers
-            new_to_old_map_path (str): Path to save or load the new_to_old_map (new ids to old ids)
-            old_to_new_map_path (str): Path to save or load the old_to_new_map (old ids to new ids)
-            replacement_character_map_path (str): Path to save or load the replacement_character_map (old ids to replacement characters),
+            new_to_old_map_path (str): Path to load the new_to_old_map (new ids to old ids)
+            old_to_new_map_path (str): Path to load the old_to_new_map (old ids to new ids)
+            replacement_character_map_path (str): Path to load the replacement_character_map (old ids to replacement characters),
             new_tokenizer_additional_special_tokens (List[str]): List of additional special tokens from the new tokenizer
-            save_maps (bool): Save the maps to the specified paths
+            apply_normalization (bool): If True, apply the R-BPE Arabic normalization to text before encoding. Default is True.
+            debug_mode (bool): Enable debug mode
+            new_tokenizer_path (str): Path to the new tokenizer model (optional)
+            old_tokenizer_path (str): Path to the old tokenizer model (optional)
         """
         self.new_tokenizer_path = new_tokenizer_path
-        self.old_tokenizer_model_id = old_tokenizer_model_id
-        self.new_tokenizer = AutoTokenizer.from_pretrained(self.new_tokenizer_path)
-        self.old_tokenizer = AutoTokenizer.from_pretrained(self.old_tokenizer_model_id, cache_dir=cache_dir)
+        self.old_tokenizer_path = old_tokenizer_path
+        if self.new_tokenizer_path and os.path.isdir(self.new_tokenizer_path):
+            self.new_tokenizer = AutoTokenizer.from_pretrained(self.new_tokenizer_path)
+        else:
+            self.new_tokenizer = new_tokenizer
+        if self.old_tokenizer_path and os.path.isdir(self.old_tokenizer_path):    
+            self.old_tokenizer = AutoTokenizer.from_pretrained(self.old_tokenizer_path)
+        else:
+            self.old_tokenizer = old_tokenizer
         self.old_vocab = self.old_tokenizer.get_vocab()
         self.new_vocab = self.new_tokenizer.get_vocab()
-        self.token_id_language_map_path = token_id_language_map_path
+        self.token_id_language_map = token_id_language_map
         self.reusable_languages = reusable_languages
         self.target_language_scripts_ranges = target_language_scripts_ranges
-        self.reusable_token_ids, self.reusable_langs_unicode_ranges = self.get_reusable_token_ids()
         self.old_tokenizer_last_special_token_id = self.old_tokenizer.all_special_ids[-1]
         self.debug_mode = debug_mode
-        self.unicode_normalizer = UnicodeNormalizer()
-        if new_to_old_map_path is not None and old_to_new_map_path is not None and save_maps is False:
+        self.apply_normalization = apply_normalization
+        self.unicode_normalizer = UnicodeNormalizer() if apply_normalization else None
+        if (new_to_old_map_path is not None and 
+            old_to_new_map_path is not None and 
+            os.path.exists(new_to_old_map_path) and 
+            os.path.exists(old_to_new_map_path)):
             self.new_to_old_map = self._load_token_map(new_to_old_map_path)
             self.old_to_new_map = self._load_token_map(old_to_new_map_path)
             self.replacement_character_map = self._load_token_map(replacement_character_map_path)
         else:
+            self.reusable_token_ids, self.reusable_langs_unicode_ranges = self.get_reusable_token_ids()
             self.new_to_old_map = self._create_token_map()
             self.old_to_new_map = {v: k for k, v in self.new_to_old_map.items()}
             self.replacement_character_map = self._create_replacement_character_map()
-            self.save_maps(new_to_old_map_path, old_to_new_map_path, replacement_character_map_path)
         self.common_token_ids = self._init_common_token_ids()
         self.common_token_ids_map = {id: True for id in self.common_token_ids}
         self.old_tokenizer_target_ids = [id for id in self.old_vocab.values() if self._is_target_input(self.old_tokenizer.decode([id]))]
@@ -101,13 +126,11 @@ class MappingTokenizer:
     
     def get_reusable_token_ids(self):
         """Get reusable token IDs from the specified languages."""
-        with open(self.token_id_language_map_path) as f:
-            lang_ids_info = json.load(f)
         reusable_ids = []
         reusable_langs_unicode_ranges = {}
         for lang in self.reusable_languages:
-            reusable_ids.extend(lang_ids_info[lang]['tokens'])
-            reusable_langs_unicode_ranges[lang] = lang_ids_info[lang]['ranges']
+            reusable_ids.extend(self.token_id_language_map[lang]['tokens'])
+            reusable_langs_unicode_ranges[lang] = self.token_id_language_map[lang]['ranges']
         # exclude special tokens and initial bytes from reusable tokens (special tokens till id 8)
         reusable_ids = [id for id in reusable_ids if id > 263]
         logger.debug(f"Found {len(reusable_ids)} reusable token IDs")
@@ -273,7 +296,7 @@ class MappingTokenizer:
                         logger.debug(f"New ID: {id}, Old ID: {self.new_to_old_map[id]}")
                 continue
             
-            normalized_segment_text = self.unicode_normalizer.normalize(segment_text)
+            normalized_segment_text = self.unicode_normalizer.normalize(segment_text) if self.apply_normalization else segment_text
             for segment_text, is_target in self._segment_input_text(normalized_segment_text):
                 if is_target:
                     # use new tokenizer for target segments
@@ -504,20 +527,6 @@ class MappingTokenizer:
         for id in ids:
             tokens.append(self.decode([id]))
         return tokens
-
-    def save_maps(self, new_to_old_map_path, old_to_new_map_path, replacement_character_map_path):
-        """Save all mapping files."""
-        with open(new_to_old_map_path, 'w') as f:
-            json.dump(self.new_to_old_map, f)
-        with open(old_to_new_map_path, 'w') as f:
-            json.dump(self.old_to_new_map, f)
-        with open(replacement_character_map_path, 'w', encoding='utf-8') as f:
-            json.dump(self.replacement_character_map, f)
-            
-        logger.info(f"Token mapping files saved to:")
-        logger.info(f"- New to old map: {new_to_old_map_path}")
-        logger.info(f"- Old to new map: {old_to_new_map_path}")
-        logger.info(f"- Replacement character map: {replacement_character_map_path}")
     
     def __getstate__(self):
         """Prepare the object for pickling."""
@@ -529,10 +538,11 @@ class MappingTokenizer:
         state.pop('_new_specials_regex', None)  # remove the compiled regex pattern
         # store the paths instead
         state['new_tokenizer_path'] = self.new_tokenizer_path
-        state['old_tokenizer_model_id'] = self.old_tokenizer_model_id
+        state['old_tokenizer_path'] = self.old_tokenizer_path
         state['new_to_old_map'] = self.new_to_old_map
         state['old_to_new_map'] = self.old_to_new_map
         state['replacement_character_map'] = self.replacement_character_map
+        state['common_token_ids_map'] = self.common_token_ids_map
         return state
 
     def __setstate__(self, state):
@@ -540,8 +550,11 @@ class MappingTokenizer:
         self.__dict__.update(state)
         # restore the tokenizer objects and unicode_normalizer
         self.new_tokenizer = AutoTokenizer.from_pretrained(self.new_tokenizer_path)
-        self.old_tokenizer = AutoTokenizer.from_pretrained(self.old_tokenizer_model_id)
-        self.unicode_normalizer = UnicodeNormalizer()  # Recreate the unicode_normalizer
+        self.old_tokenizer = AutoTokenizer.from_pretrained(self.old_tokenizer_path)
+        self.old_vocab = self.old_tokenizer.get_vocab()
+        self.new_vocab = self.new_tokenizer.get_vocab()
+        # Recreate the unicode_normalizer only if normalization is enabled
+        self.unicode_normalizer = UnicodeNormalizer() if self.apply_normalization else None
         
         # recreate the regex pattern from the special tokens list
         if self.new_additional_tokens:
@@ -561,175 +574,9 @@ class MappingTokenizer:
         state['new_to_old_map'] = {int(k): v for k,v in state['new_to_old_map'].items()}
         state['old_to_new_map'] = {int(k): v for k,v in state['old_to_new_map'].items()}
         state['replacement_character_map'] = {int(k): v for k,v in state['replacement_character_map'].items()}
+        state['common_token_ids_map'] = {int(k): v for k,v in state['common_token_ids_map'].items()}
+        
         # create a blank instance without invoking __init__
         obj = cls.__new__(cls)
         obj.__setstate__(state)  # restore state
         return obj
-
-
-def main():
-    import os
-    parser = argparse.ArgumentParser(description="Prepare a mapping tokenizer")
-    parser.add_argument('--config', type=str, required=True, help='Path to YAML config file')
-    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
-    args = parser.parse_args()
-
-    # READ FROM YAML
-    with open(args.config, 'r') as file:
-        config = yaml.safe_load(file)
-
-    # Handle Hugging Face login if API key is provided
-    if config.get('hf_token'):
-        login(token=config['hf_token'])
-        logger.info("Successfully logged in to Hugging Face Hub")
-    else:
-        logger.warning("No hf_token provided in config. You might have limited access to models.")
-    
-    # Set up paths
-    output_dir = config['output_dir']
-    metadata_dir = os.path.join(output_dir, "metadata")
-    tokenizer_dir = os.path.join(output_dir, "tokenizer")
-    cache_dir = os.path.join(output_dir, "cache")
-    
-    # Set up metadata paths
-    token_id_language_map_path = os.path.join(metadata_dir, "token_id_language_map.json")
-    token_text_language_map_path = os.path.join(metadata_dir, "token_text_language_map.json")
-    reusable_languages_path = os.path.join(metadata_dir, "vocabulary_languages.txt")
-    new_to_old_map_path = os.path.join(metadata_dir, "new_to_old_map.json")
-    old_to_new_map_path = os.path.join(metadata_dir, "old_to_new_map.json")
-    replacement_character_map_path = os.path.join(metadata_dir, "replacement_character_map.json")
-    new_tokenizer_additional_special_tokens = config.get('special_tokens', {}).get('additional_special_tokens', None)
-    
-    # Get ranges path
-    current_script_path = os.path.abspath(__file__)
-    rbpe_dir = os.path.dirname(current_script_path)
-    src_dir = os.path.dirname(rbpe_dir)
-    rbpe_repo_dir = os.path.dirname(src_dir)
-    ranges_path = os.path.join(rbpe_repo_dir, "inputs", "unicode_ranges.txt")
-    if not os.path.exists(ranges_path):
-        default_ranges_path = os.path.join(rbpe_repo_dir, "inputs", "unicode_ranges.txt")
-        if os.path.exists(default_ranges_path):
-            import shutil
-            shutil.copy(default_ranges_path, ranges_path)
-            logger.debug(f"Copied ranges file from {default_ranges_path} to {ranges_path}")
-        else:
-            logger.warning(f"Ranges file not found at {default_ranges_path}")
-            ranges_path = default_ranges_path
-
-    token_classifier = TokenClassifier(
-        token_id_language_map_path=token_id_language_map_path,
-        token_text_language_map_path=token_text_language_map_path,
-        min_reusable_ids=config.get('min_reusable_count', 20000),
-        vocabulary_languages_path=reusable_languages_path,
-        target_language_scripts=config.get('target_language_scripts', []),
-        preserved_languages_scripts=config.get('preserved_languages_scripts', []),
-        old_tokenizer_model_id=config['model_id'],
-        hf_api_key=config.get('hf_token')
-    )
-
-    reusable_languages_with_ranges_dict, total_reusable_language_count = token_classifier.get_reusable_languages_and_count()
-    target_language_scripts_ranges = token_classifier.get_target_language_scripts_ranges()
-    reusable_languages = list(reusable_languages_with_ranges_dict.keys())
-
-    should_create_mapping = config.get('force', {}).get('mapping', False)
-
-    wrapper_tokenizer = MappingTokenizer(
-        new_tokenizer_path=tokenizer_dir,
-        old_tokenizer_model_id=config['model_id'],
-        token_id_language_map_path=token_id_language_map_path,
-        reusable_languages=reusable_languages,
-        target_language_scripts_ranges=target_language_scripts_ranges,
-        cache_dir=cache_dir,
-        new_to_old_map_path=new_to_old_map_path,
-        old_to_new_map_path=old_to_new_map_path,
-        replacement_character_map_path=replacement_character_map_path,
-        new_tokenizer_additional_special_tokens=new_tokenizer_additional_special_tokens,
-        save_maps=should_create_mapping,
-        debug_mode=args.debug
-    )
-
-    while True:
-        print("\nOptions:")
-        print("1. Encode and decode text with mapping tokenizer")
-        print("2. Decode token IDs with mapping tokenizer")
-        print("3. Decode token IDs with old tokenizer")
-        print("4. Decode token IDs with new tokenizer")
-        print("5. Encode and decode text with old tokenizer")
-        print("6. Encode and decode text with new tokenizer")
-        print("q. Quit")
-        
-        choice = input("Enter your choice: ")
-        
-        if choice.lower() == 'q':
-            break
-        
-        if choice == '1':
-            user_input = input("Enter text to encode and decode: ")
-            encoded_text = wrapper_tokenizer.encode(user_input)
-            encoded_tokens = wrapper_tokenizer.convert_tok_ids_to_tokens(encoded_text)
-            decoded_text = wrapper_tokenizer.decode(encoded_text)
-            
-            print(f"Text encoded: {encoded_text}")
-            print(f"Tokens: {encoded_tokens}")
-            print(f"Text decoded: {decoded_text}")
-        
-        elif choice == '2':
-            ids_input = input("Enter token IDs (comma-separated integers): ")
-            try:
-                ids = [int(id_str.strip()) for id_str in ids_input.split(',')]
-                decoded_text = wrapper_tokenizer.decode(ids)
-                tokens = wrapper_tokenizer.convert_tok_ids_to_tokens(ids)
-                
-                print(f"Tokens: {tokens}")
-                print(f"Decoded text (mapping tokenizer): {decoded_text}")
-            except ValueError:
-                print("Error: Please enter valid comma-separated integers")
-        
-        elif choice == '3':
-            ids_input = input("Enter token IDs (comma-separated integers): ")
-            try:
-                ids = [int(id_str.strip()) for id_str in ids_input.split(',')]
-                decoded_text = wrapper_tokenizer.old_tokenizer.decode(ids)
-                
-                print(f"Decoded text (original tokenizer): {decoded_text}")
-            except ValueError:
-                print("Error: Please enter valid comma-separated integers")
-                
-        elif choice == '4':
-            ids_input = input("Enter token IDs (comma-separated integers): ")
-            try:
-                ids = [int(id_str.strip()) for id_str in ids_input.split(',')]
-                mapped_ids = [wrapper_tokenizer.old_to_new_map[id] for id in ids]
-                decoded_text = wrapper_tokenizer.new_tokenizer.decode(mapped_ids)
-                tokens = wrapper_tokenizer.new_tokenizer.convert_ids_to_tokens(mapped_ids)
-                
-                print(f"Tokens (new tokenizer): {tokens}")
-                print(f"Decoded text (new tokenizer): {decoded_text}")
-            except ValueError:
-                print("Error: Please enter valid comma-separated integers")
-        
-        elif choice == '5':
-            user_input = input("Enter text to encode and decode with old tokenizer: ")
-            encoded_text = wrapper_tokenizer.old_tokenizer.encode(user_input, add_special_tokens=False)
-            decoded_text = wrapper_tokenizer.old_tokenizer.decode(encoded_text)
-            tokens = wrapper_tokenizer.old_tokenizer.convert_ids_to_tokens(encoded_text)
-            
-            print(f"Text encoded (old tokenizer): {encoded_text}")
-            print(f"Tokens (old tokenizer): {tokens}")
-            print(f"Text decoded (old tokenizer): {decoded_text}")
-        
-        elif choice == '6':
-            user_input = input("Enter text to encode and decode with new tokenizer: ")
-            encoded_text = wrapper_tokenizer.new_tokenizer.encode(user_input, add_special_tokens=False)
-            decoded_text = wrapper_tokenizer.new_tokenizer.decode(encoded_text)
-            tokens = wrapper_tokenizer.new_tokenizer.convert_ids_to_tokens(encoded_text)
-            
-            print(f"Text encoded (new tokenizer): {encoded_text}")
-            print(f"Tokens (new tokenizer): {tokens}")
-            print(f"Text decoded (new tokenizer): {decoded_text}")
-        
-        else:
-            print("Invalid choice. Please try again.")
-
-if __name__ == "__main__":
-    main()

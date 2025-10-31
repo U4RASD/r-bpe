@@ -1,6 +1,4 @@
-import os
-import yaml
-from datasets import concatenate_datasets, load_from_disk
+from datasets import concatenate_datasets
 from tokenizers import (
     Tokenizer,
     models,
@@ -12,33 +10,47 @@ from tokenizers import (
 from transformers import AutoTokenizer
 from .token_classifier import TokenClassifier
 from huggingface_hub import login
+import os
+from datasets import load_from_disk
 import logging
 
 logger = logging.getLogger('BPE')
 
 class BPETokenizerTrainer:
-    def __init__(self, training_data_dir, output_tokenizer_dir, vocab_size, model_id, special_tokens_dict):
-        self.training_data_dir = training_data_dir
-        self.output_tokenizer_dir = output_tokenizer_dir
+    def __init__(self, vocab_size, model_id, special_tokens_dict, dataset_dir=None, dataset=None):
+        if dataset_dir:
+            self.dataset = self._prepare_dataset_from_dir(dataset_dir)
+        else:
+            self.dataset = self._prepare_dataset(dataset)
         self.vocab_size = vocab_size
         self.model_id = model_id
         self.special_tokens_dict = special_tokens_dict
 
-    def _load_datasets(self):
+    def _prepare_dataset_from_dir(self, dataset_dir):
         datasets = []
-        if os.path.isfile(os.path.join(self.training_data_dir, "dataset_info.json")):
-            dataset = load_from_disk(self.training_data_dir)
+        if os.path.isfile(os.path.join(dataset_dir, "dataset_info.json")):
+            dataset = load_from_disk(dataset_dir)
             datasets.extend(dataset.values() if isinstance(dataset, dict) else [dataset])
         else:
-            for dataset_name in os.listdir(self.training_data_dir):
-                input_dir = os.path.join(self.training_data_dir, dataset_name)
+            for dataset_name in os.listdir(dataset_dir):
+                input_dir = os.path.join(dataset_dir, dataset_name)
                 if os.path.isdir(input_dir):
                     dataset = load_from_disk(input_dir)
                     datasets.extend(dataset.values() if isinstance(dataset, dict) else [dataset])
         return concatenate_datasets(datasets)
+    
+    def _prepare_dataset(self, dataset):
+        datasets = []
+        # If dataset is a dict (e.g., DatasetDict with splits), extend with all splits
+        if isinstance(dataset, dict):
+            datasets.extend(dataset.values())
+        else:
+            # Otherwise, it's a single dataset
+            datasets.append(dataset)
+        return concatenate_datasets(datasets)
 
     def _get_text_generator(self):
-        combined_data = self._load_datasets()
+        combined_data = self.dataset
         return (example["text"] for example in combined_data)
 
     def _train_tokenizer(self, texts):
@@ -110,39 +122,6 @@ class BPETokenizerTrainer:
             logger.error(f"Failed to create tokenizer: {e}")
             raise ValueError(f"Failed to create tokenizer: {e}")
 
-    def _save_and_load_tokenizer(self, tokenizer):
-        try:
-            tokenizer.save_pretrained(self.output_tokenizer_dir)
-            logger.info(f"Tokenizer saved to {self.output_tokenizer_dir}")
-
-            loaded_tokenizer = AutoTokenizer.from_pretrained(self.output_tokenizer_dir)
-            logger.debug("Tokenizer loaded successfully")
-            return loaded_tokenizer
-        except Exception as e:
-            logger.error(f"Error saving or loading tokenizer: {e}")
-            raise ValueError(f"Error saving or loading tokenizer: {e}")
-
-    def _analyze_tokenizer(self, tokenizer, example_text="Hello, how are you today?"):
-        try:
-            vocab = tokenizer.get_vocab()
-            vocab_size = len(vocab)
-            first_10_tokens = list(vocab.keys())[:10]
-            logger.debug(f"Vocabulary size: {vocab_size}")
-            logger.debug(f"First 10 tokens: {first_10_tokens}")
-
-            encoded = tokenizer.encode(example_text)
-            decoded = tokenizer.decode(encoded)
-            tokens = tokenizer.tokenize(example_text)
-
-            logger.debug(f"Example text: {example_text}")
-            logger.debug(f"Encoded IDs: {encoded}")
-            logger.debug(f"Decoded text: {decoded}")
-            logger.debug(f"Tokens: {tokens}")
-
-        except Exception as e:
-            logger.error(f"An error occurred during tokenizer analysis: {e}")
-            raise ValueError(f"An error occurred during tokenizer analysis: {e}")
-
     def run(self):
         try:
             texts = self._get_text_generator()
@@ -153,15 +132,7 @@ class BPETokenizerTrainer:
                 logger.error(error_msg)
                 raise ValueError(error_msg)
 
-            loaded_tokenizer = self._save_and_load_tokenizer(trained_tokenizer)
-            if loaded_tokenizer is None:
-                error_msg = "Failed to save and load the tokenizer."
-                logger.error(error_msg)
-                raise ValueError(error_msg)
-
-            self._analyze_tokenizer(loaded_tokenizer)
-
-            logger.info("Tokenizer training and testing completed successfully.")
+            return trained_tokenizer
 
         except Exception as e:
             logger.error(f"An unexpected error occurred: {e}")
