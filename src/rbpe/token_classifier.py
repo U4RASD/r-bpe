@@ -1,9 +1,14 @@
 import yaml
 import json
+import re
 from collections import defaultdict
+from pathlib import Path
+import os
 from transformers import AutoTokenizer
 from huggingface_hub import login
 import logging
+
+from .utils.data_reader import DataReader
 
 logger = logging.getLogger('BPE')
 
@@ -11,36 +16,55 @@ logger = logging.getLogger('BPE')
 class TokenClassifier:
     def __init__(
         self,
-        ranges_path: str,
         token_id_language_map_path: str,
         token_text_language_map_path: str,
         min_reusable_ids: int,
         vocabulary_languages_path: str,
-        preserved_languages: list,
         old_tokenizer_model_id: str,
         hf_api_key: str = None,
-        save_classified_tokens: bool = True
+        save_classified_tokens: bool = True,
+        target_language_scripts: list = ["arabic"],
+        preserved_languages_scripts: list = ["arabic", "latin", "greek"],
     ):
         """
         Initialize TokenClassifier.
 
         Args:
-            ranges_path: Path to file containing Unicode character ranges
             token_id_language_map_path: Path to save token IDs classified by language
             token_text_language_map_path: Path to save token text classified by language
             min_reusable_ids: Minimum number of reusable IDs needed
             vocabulary_languages_path: Path to save classified vocabulary languages list
-            preserved_languages: Languages to preserve and exclude from reuse
             old_tokenizer_model_id: HuggingFace model ID for base tokenizer
             hf_api_key: Optional HuggingFace API key
             save_classified_tokens: Whether to save classification results to files
+            target_language_scripts: Target language scripts of the new tokenizer and that will be preserved
+            preserved_languages_scripts: Language scripts to preserve and exclude from reuse
         """
-        self.ranges_path = ranges_path
+        self.data_reader = DataReader()
+        self.unified_aliases, self.script_name_to_alias, self.alias_to_script_name = self.data_reader.read_script_aliases()
+        self.blocks = self.data_reader.read_blocks()
+        self.script_to_blocks = self.data_reader.read_json(self.data_reader.script_to_blocks_file)
+        
+        self._validate_params(
+            token_id_language_map_path,
+            token_text_language_map_path,
+            min_reusable_ids,
+            vocabulary_languages_path,
+            target_language_scripts,
+            preserved_languages_scripts,
+            old_tokenizer_model_id,
+            hf_api_key,
+            save_classified_tokens
+        )
+        
         self.token_id_language_map_path = token_id_language_map_path
         self.token_text_language_map_path = token_text_language_map_path
         self.min_reusable_ids = min_reusable_ids
         self.vocabulary_languages_path = vocabulary_languages_path
-        self.preserved_languages = preserved_languages
+        self.target_language_scripts = self._map_languages_to_aliases(target_language_scripts)
+        self.preserved_languages_scripts = self._map_languages_to_aliases(preserved_languages_scripts)
+        self.preserved_languages_set = set(self.preserved_languages_scripts) | set(self.target_language_scripts)
+        self.preserved_languages_scripts = list(self.preserved_languages_set)
         self.old_tokenizer_model_id = old_tokenizer_model_id
         self.hf_api_key = hf_api_key
         self.reusable_languages = []
@@ -48,6 +72,110 @@ class TokenClassifier:
         self.classified_ids_with_ranges = None
         self.classified_tokens_with_ranges = None
         self.all_languages_data = None
+        self.preserved_blocks_ranges = None
+    
+
+    def _validate_params(
+        self,
+        token_id_language_map_path: str,
+        token_text_language_map_path: str,
+        min_reusable_ids: int,
+        vocabulary_languages_path: str,
+        target_language_scripts: list,
+        preserved_languages_scripts: list,
+        old_tokenizer_model_id: str,
+        hf_api_key: str = None,
+        save_classified_tokens: bool = True
+    ):
+        """
+        Validate all initialization parameters.
+        """
+        if not isinstance(min_reusable_ids, int):
+            raise ValueError(f"min_reusable_ids must be an integer: {min_reusable_ids}")
+        if min_reusable_ids <= 0:
+            raise ValueError(f"min_reusable_ids must be greater than 0: {min_reusable_ids}")
+        
+        if not isinstance(target_language_scripts, list):
+            raise ValueError(f"target_language_scripts must be a list: {target_language_scripts}")
+        if not isinstance(preserved_languages_scripts, list):
+            raise ValueError(f"preserved_languages_scripts must be a list: {preserved_languages_scripts}")
+        
+        if not self._validate_languages(target_language_scripts):
+            raise ValueError(f"target_language_scripts must be valid script names or aliases: {target_language_scripts}")
+        if not self._validate_languages(preserved_languages_scripts):
+            raise ValueError(f"preserved_languages_scripts must be valid script names or aliases: {preserved_languages_scripts}")
+
+
+    def _validate_languages(self, languages: list) -> bool:
+        """
+        Validate a language is a valid script name or alias.
+        """
+        for language in languages:
+            if language.lower() in self.unified_aliases:
+                return True
+            if language.lower() in self.script_name_to_alias:
+                return True
+        return False
+    
+
+    def _map_languages_to_aliases(self, languages: list) -> list:
+        """
+        Map languages to aliases.
+        """
+        return [self.unified_aliases[language.lower()] for language in languages]
+
+    def _get_preserved_blocks_ranges(self) -> list:
+        """
+        Get the Unicode ranges (lower_bound, upper_bound) for blocks associated with
+        target_language_scripts and preserved_languages_scripts.
+        
+        Returns:
+            list of tuples: [(lower_bound, upper_bound), ...]
+        """
+        if self.preserved_blocks_ranges is not None:
+            return self.preserved_blocks_ranges
+        
+        # Get all blocks associated with excluded scripts
+        preserved_block_names = set()    
+        for script in self.preserved_languages_scripts:
+            if script in self.script_to_blocks:
+                preserved_block_names.update(self.script_to_blocks[script])
+        
+        # Convert block names to ranges
+        preserved_ranges = []
+        for block_name in preserved_block_names:
+            if block_name in self.blocks:
+                logger.debug(f"Preserved block: {block_name}, ranges: {self.blocks[block_name]}")
+                preserved_ranges.append(self.blocks[block_name])
+        
+        self.preserved_blocks_ranges = preserved_ranges
+        logger.info(f"Preserving {len(preserved_ranges)} blocks associated with scripts: {self.preserved_languages_scripts}")
+        
+        return self.preserved_blocks_ranges
+
+    def _ranges_overlap_with_preserved_blocks(self, ranges: list) -> bool:
+        """
+        Check if any of the given ranges overlap with preserved blocks.
+        
+        Args:
+            ranges: list of (lower_bound, upper_bound) tuples
+            
+        Returns:
+            bool: True if any range overlaps with preserved blocks
+        """
+        preserved_ranges = self._get_preserved_blocks_ranges()
+        
+        if not preserved_ranges:
+            return False
+        
+        for range_tuple in ranges:
+            range_start, range_end = range_tuple
+            for preserved_start, preserved_end in preserved_ranges:
+                # Check if ranges overlap
+                if not (range_end < preserved_start or range_start > preserved_end):
+                    return True
+        
+        return False
 
     def _hex_to_int(self, hex_str: str) -> int:
         """Convert a hexadecimal string to an integer."""
@@ -78,9 +206,15 @@ class TokenClassifier:
         unicode_ranges = []
         with open(file_path) as f:
             for line in f:
-                range_str, language = line.strip().split("\t")
-                lower_bound = self._hex_to_int(range_str.split()[0])
-                upper_bound = self._hex_to_int(range_str.split()[2])
+                # Skip comments and empty lines
+                if line.startswith('#') or not line.strip():
+                    continue
+                
+                range_str, language = line.strip().split(";")
+                language = language.strip()
+                range_parts = range_str.strip().split("..")
+                lower_bound = self._hex_to_int(range_parts[0])
+                upper_bound = self._hex_to_int(range_parts[1])
                 
                 language_keywords = ["Arabic", "CJK", "Greek", "Latin"]
                 for keyword in language_keywords:
@@ -107,7 +241,7 @@ class TokenClassifier:
             if all(lang in {'Katakana', 'Hiragana', 'CJK_merged'} for lang in found_languages):
                 found_languages = {lang for lang in found_languages if "CJK" not in lang}
                 if found_languages == {'Katakana', 'Hiragana'}:
-                    found_languages = {'Katakana + Hiragana'}
+                    found_languages = {'Katakana_Hiragana'}
             elif found_languages == {'Greek and Coptic', 'Greek Extended'}:
                 found_languages = {'Greek and Coptic'}
             else:
@@ -131,9 +265,9 @@ class TokenClassifier:
             language, ranges = self._classify_token(visible_token, unicode_ranges)
             
             if language:
-                classified_tokens[language].append(visible_token)
-                classified_tokens_ids[language].append(token_id)
-                classified_ranges[language].update(ranges)
+                classified_tokens[language.lower()].append(visible_token)
+                classified_tokens_ids[language.lower()].append(token_id)
+                classified_ranges[language.lower()].update(ranges)
 
         return classified_tokens, classified_tokens_ids, classified_ranges
 
@@ -166,7 +300,7 @@ class TokenClassifier:
         """
         # Load and process the data
         tokenizer_data = self._load_tokenizer(self.old_tokenizer_model_id)
-        unicode_ranges = self._load_unicode_ranges(self.ranges_path)
+        unicode_ranges = self._load_unicode_ranges(self.data_reader.blocks_file)
         
         # Classify the tokens
         classified_tokens, classified_tokens_ids, classified_ranges = self._classify_tokens_by_language(
@@ -215,22 +349,51 @@ class TokenClassifier:
         Returns total reusable IDs, selected languages, total IDs available, and all languages.
         """
         self._classify_and_save_tokens()
-        include_languages = [
-            "cyrillic", "chinese", "korean", "japanese", "hebrew", "hindi", 
-            "hangul", "hiragana", "thai", "tamil", "bengali", "armenian", 
-            "burmese", "georgian", "tibetan", "khmer", "malayalam", "sinhala", 
-            "kannada", "telugu", "katakana", "myanmar", "cjk", "devanagari", 
-            "dingbats", "greek"
-        ]
-        with open(self.token_id_language_map_path, 'r') as file:
-            language_data = json.load(file)
+        # all scripts are reusable besides common, inherited, and braille scripts
+        include_languages = [script.lower() for script in self.script_name_to_alias.keys() if script not in ['common', 'inherited', 'braille']]
+        include_languages.append("cjk")
+        include_languages.append("dingbats") # to match legacy token classifcation
+        logger.debug(f"Include languages: {include_languages}")
         
-        filtered_languages = [
-            (language, len(data["tokens"]))
-            for language, data in language_data.items()
-            if not any(preserved.lower() in language.lower() for preserved in self.preserved_languages) 
-            and any(included.lower() in language.lower() for included in include_languages)
-        ]
+        # Use in-memory data if not saving to files
+        if not self.save_classified_tokens:
+            language_data = self.classified_ids_with_ranges
+        else:
+            with open(self.token_id_language_map_path, 'r') as file:
+                language_data = json.load(file)
+        
+        # CJK case: if any CJK scripts are preserved, add remaining CJK scripts to the preserved languages
+        # CJK scripts overlap a lot in unicode blocks. It is safer to preserve all CJK scripts when one is needed to be preserved.
+        cjk_case = False
+        cjk_scripts = ["bopomofo", "hangul", "han", "hiragana", "katakana"]
+        if any(script in self.preserved_languages_scripts for script in cjk_scripts):
+            cjk_set = set(cjk_scripts)
+            preserved_set = set(self.preserved_languages_scripts)
+            preserved_set.update(cjk_set)
+            self.preserved_languages_scripts = list(preserved_set)
+            logger.info(f"CJK scripts detected. Updated preserved languages: {self.preserved_languages_scripts}")
+            cjk_case = True
+        
+        filtered_languages = []
+        for language, data in language_data.items():
+            language = language.lower()
+            logger.debug(f"Language: {language} Ranges: {data.get('ranges', [])}")
+
+            # Exclude common, inherited, and braille scripts
+            language_parts = language.replace('_', ' ').split()
+            if not any(included.lower() in language_parts for included in include_languages):
+                logger.debug(f"Excluding language '{language}'")
+                continue
+            
+            # Check if language's ranges overlap with preserved blocks
+            ranges = data.get("ranges", [])
+            if ranges and self._ranges_overlap_with_preserved_blocks(ranges):
+                logger.debug(f"Ranges overlap with preserved blocks: {ranges}")
+                if any(preserved_language in language for preserved_language in self.preserved_languages_scripts) or (cjk_case and "cjk" in language):
+                    logger.debug(f"Excluding language '{language}' due to overlap with preserved blocks")
+                    continue
+            
+            filtered_languages.append((language, len(data["tokens"])))
 
         self.reusable_languages = [language for language, _ in filtered_languages]
 
@@ -266,7 +429,7 @@ class TokenClassifier:
         total_ids, selected_languages, total_ids_available, all_languages = self._analyze_tokenizer_languages()
         
         logger.info(f"Total number of IDs available: {total_ids_available}")
-        logger.info(f"Total number of reusable IDs (excluding languages containing {self.preserved_languages}): {total_ids}")
+        logger.info(f"Total number of reusable IDs (excluding languages containing {self.preserved_languages_scripts}): {total_ids}")
         logger.info(f"Languages selected to reach or exceed {self.min_reusable_ids} reusable IDs:")
         for lang in selected_languages:
             logger.info(f"  - {lang}")
@@ -344,3 +507,21 @@ class TokenClassifier:
                 total_reusable_language_count += len(tokens)
         
         return reusable_languages_with_ranges_dict, total_reusable_language_count
+    
+    def get_target_language_scripts_ranges(self) -> list:
+        """
+        Get the Unicode ranges (lower_bound, upper_bound) for blocks associated with
+        target_language_scripts.
+        
+        Returns:
+            list of tuples: [(lower_bound, upper_bound), ...]
+        """
+        target_ranges = []
+        for script in self.target_language_scripts:
+            if script in self.script_to_blocks:
+                blocks = self.script_to_blocks[script]
+                logger.debug(f"Target language scripts blocks for script {script}: {blocks}")
+                for block in blocks:
+                    if block in self.blocks:
+                        target_ranges.append(self.blocks[block])
+        return target_ranges

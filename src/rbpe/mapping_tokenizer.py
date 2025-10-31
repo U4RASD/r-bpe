@@ -5,6 +5,7 @@ from transformers import AutoTokenizer
 from tqdm import tqdm
 import argparse
 import json
+import re
 
 from .token_classifier import TokenClassifier
 from .utils.unicode_normalizer import UnicodeNormalizer
@@ -20,9 +21,9 @@ if not logger.handlers:
     logger = setup_logger('BPE')
 
 class MappingTokenizer:
-    def __init__(self, new_tokenizer_path, old_tokenizer_model_id, token_id_language_map_path, reusable_languages,
+    def __init__(self, new_tokenizer_path, old_tokenizer_model_id, token_id_language_map_path, reusable_languages, target_language_scripts_ranges,
                  cache_dir="./huggingface", new_to_old_map_path=None, old_to_new_map_path=None, 
-                 replacement_character_map_path=None, save_maps=False, debug_mode=False):
+                 replacement_character_map_path=None, new_tokenizer_additional_special_tokens=None, save_maps=False, debug_mode=False):
         """
         Initialize the MappingTokenizer.
 
@@ -31,10 +32,12 @@ class MappingTokenizer:
             old_tokenizer_model_id (str): Model ID for the old tokenizer
             token_id_language_map_path (str): Path to JSON file with languages and their corresponding token IDs from the old tokenizer
             reusable_languages (List[str]): List of languages whose token ids will be reused
+            target_language_scripts_ranges (List[tuple]): List of Unicode ranges (lower_bound, upper_bound) for target language scripts
             cache_dir (str): Directory to use to cache tokenizers
             new_to_old_map_path (str): Path to save or load the new_to_old_map (new ids to old ids)
             old_to_new_map_path (str): Path to save or load the old_to_new_map (old ids to new ids)
-            replacement_character_map_path (str): Path to save or load the replacement_character_map (old ids to replacement characters)
+            replacement_character_map_path (str): Path to save or load the replacement_character_map (old ids to replacement characters),
+            new_tokenizer_additional_special_tokens (List[str]): List of additional special tokens from the new tokenizer
             save_maps (bool): Save the maps to the specified paths
         """
         self.new_tokenizer_path = new_tokenizer_path
@@ -45,6 +48,7 @@ class MappingTokenizer:
         self.new_vocab = self.new_tokenizer.get_vocab()
         self.token_id_language_map_path = token_id_language_map_path
         self.reusable_languages = reusable_languages
+        self.target_language_scripts_ranges = target_language_scripts_ranges
         self.reusable_token_ids, self.reusable_langs_unicode_ranges = self.get_reusable_token_ids()
         self.old_tokenizer_last_special_token_id = self.old_tokenizer.all_special_ids[-1]
         self.debug_mode = debug_mode
@@ -60,9 +64,18 @@ class MappingTokenizer:
             self.save_maps(new_to_old_map_path, old_to_new_map_path, replacement_character_map_path)
         self.common_token_ids = self._init_common_token_ids()
         self.common_token_ids_map = {id: True for id in self.common_token_ids}
-        self.old_tokenizer_arabic_ids = [id for id in self.old_vocab.values() if self._is_target_input(self.old_tokenizer.decode([id]))]
-        self.new_tokenizer_arabic_ids = [id for token, id in self.new_vocab.items() if self._is_target_input(self.new_tokenizer.decode([id]))]
-        self.new_tokenizer_arabic_ids_mapped = [self.new_to_old_map[id] for id in self.new_tokenizer_arabic_ids]
+        self.old_tokenizer_target_ids = [id for id in self.old_vocab.values() if self._is_target_input(self.old_tokenizer.decode([id]))]
+        self.new_tokenizer_target_ids = [id for token, id in self.new_vocab.items() if self._is_target_input(self.new_tokenizer.decode([id]))]
+        self.new_tokenizer_target_ids_mapped = [self.new_to_old_map[id] for id in self.new_tokenizer_target_ids]
+        self.new_additional_tokens = new_tokenizer_additional_special_tokens or []
+        # if any special tokens are provided, compile a regex to detect them in text.
+        if self.new_additional_tokens:
+            # sort tokens by length to ensure that if one token is a prefix of another,
+            # (e.g., "<extra_id_1>" and "<extra_id_10>"), the longer one is matched first.
+            escaped = [re.escape(t) for t in sorted(self.new_additional_tokens, key=len, reverse=True)]
+            self._new_specials_regex = re.compile(f"({'|'.join(escaped)})")
+        else:
+            self._new_specials_regex = None
 
     @classmethod
     def from_config(cls, config_path):
@@ -159,41 +172,47 @@ class MappingTokenizer:
 
 
     def _is_target_input(self, text):
-        """Check if the given text contains Arabic characters."""
-        arabic_ranges = [
-            (0x0600, 0x06FF),   # Arabic
-            (0x0750, 0x077F),   # Arabic Supplement
-            (0x08A0, 0x08FF),   # Arabic Extended-A
-            (0x0870, 0x089F),   # Arabic Extended-B
-            (0x10EC0, 0x10EFF), # Arabic Extended-C
-            (0xFB50, 0xFDFF),   # Arabic Presentation Forms-A
-            (0xFE70, 0xFEFF),   # Arabic Presentation Forms-B
-            (0x1EE00, 0x1EEFF)  # Arabic Mathematical Alphabetic Symbols
-        ]
+        """Check if the given text contains target language characters."""
         for char in text:
             code_point = ord(char)
-            if any(start <= code_point <= end for start, end in arabic_ranges):
+            if any(start <= code_point <= end for start, end in self.target_language_scripts_ranges):
                 return True
         return False
-    
-    
-    def encode(self, text, **kwargs):
-        """Encode the input text to token IDs by segmenting into Arabic and non-Arabic parts."""
-        kwargs['add_special_tokens'] = False 
 
-        text = self.unicode_normalizer.normalize(text)
-
+    def _split_by_new_specials(self, text):
+        """
+        Returns a list of (segment, is_always_new). Segments marked True are the exact
+        matched special tokens and must be encoded with the new tokenizer.
+        """
+        if not self._new_specials_regex:
+            return [(text, False)]
+        
+        # split by special tokens, the regex uses capturing groups, so matched tokens
+        # are included in the result list
+        parts = self._new_specials_regex.split(text)
+        
+        # check each part against our special tokens list
+        result = []
+        for part in parts:
+            if part:
+                is_special = part in self.new_additional_tokens
+                result.append((part, is_special))
+        
+        return result if result else [(text, False)]
+    
+    def _segment_input_text(self, text):
+        """Segment the input text into target-language and non-target-language segments."""
         # First attempt with segmented encoding
         # Initialize variables
         segments = []
         current_segment = []
-        is_current_arabic = None
+        is_current_target = None
         
         # Process text character by character
         i = 0
         while i < len(text):
             char = text[i]
-            is_char_arabic = self._is_target_input(char)
+            is_char_target = self._is_target_input(char)
 
             # add spaces to current segment without further checks
             # they get encoded and decoded according to the segment they got added to
@@ -203,19 +222,19 @@ class MappingTokenizer:
                 continue
                     
             # handle first non-whitespace character
-            if is_current_arabic is None:
-                is_current_arabic = is_char_arabic
+            if is_current_target is None:
+                is_current_target = is_char_target
                 current_segment.append(char)
                 i += 1
                 continue
                     
-            # if we're switching between Arabic and non-Arabic (or vice versa)
-            if is_char_arabic != is_current_arabic:
+            # if we're switching between target and non-target (or vice versa)
+            if is_char_target != is_current_target:
                 # save current segment if it exists
                 if current_segment:
-                    segments.append((''.join(current_segment), is_current_arabic))
+                    segments.append((''.join(current_segment), is_current_target))
                 current_segment = [char]
-                is_current_arabic = is_char_arabic
+                is_current_target = is_char_target
                 i += 1
                 continue
             else:
@@ -225,29 +244,51 @@ class MappingTokenizer:
         
         # add final segment
         if current_segment:
-            segments.append((''.join(current_segment), is_current_arabic))
+            segments.append((''.join(current_segment), is_current_target))
 
         if self.debug_mode:
             logger.debug(f"Original text:\n{text}")
             logger.debug(f"Encoding segments:\n{segments}")
+        return segments
+    
+    def encode(self, text, **kwargs):
+        """Encode the input text to token IDs by segmenting into target and non-target parts."""
+        kwargs['add_special_tokens'] = False 
+
+        # handle additional special tokens from the new tokenizer
+        initial_segments = self._split_by_new_specials(text)
 
         # encode each segment with appropriate tokenizer
         final_encoding = []
-        for segment_text, is_arabic in segments:
-            if is_arabic:
-                # use new tokenizer for Arabic segments
+        for segment_text, is_always_new in initial_segments:
+            if is_always_new:
+                # use new tokenizer for always-new segments
                 new_ids = self.new_tokenizer.encode(segment_text, **kwargs)
                 # map new ids to old ids
                 old_ids = [self.new_to_old_map[id] for id in new_ids]
                 final_encoding.extend(old_ids)
                 if self.debug_mode:
-                    logger.debug(f"Arabic segment:\n{segment_text}")
+                    logger.debug(f"target segment:\n{segment_text}")
                     for id in new_ids:
                         logger.debug(f"New ID: {id}, Old ID: {self.new_to_old_map[id]}")
-            else:
-                # use old tokenizer for non-Arabic segments
-                old_ids = self.old_tokenizer.encode(segment_text, **kwargs)
-                final_encoding.extend(old_ids)
+                continue
+            
+            normalized_segment_text = self.unicode_normalizer.normalize(segment_text)
+            for segment_text, is_target in self._segment_input_text(normalized_segment_text):
+                if is_target:
+                    # use new tokenizer for target segments
+                    new_ids = self.new_tokenizer.encode(segment_text, **kwargs)
+                    # map new ids to old ids
+                    old_ids = [self.new_to_old_map[id] for id in new_ids]
+                    final_encoding.extend(old_ids)
+                    if self.debug_mode:
+                        logger.debug(f"target segment:\n{segment_text}")
+                        for id in new_ids:
+                            logger.debug(f"New ID: {id}, Old ID: {self.new_to_old_map[id]}")
+                else:
+                    # use old tokenizer for non-target segments
+                    old_ids = self.old_tokenizer.encode(segment_text, **kwargs)
+                    final_encoding.extend(old_ids)
 
         return final_encoding
 
@@ -461,10 +502,7 @@ class MappingTokenizer:
         """Convert token IDs to tokens."""
         tokens = []
         for id in ids:
-            if id in self.old_to_new_map and id in self.new_tokenizer_arabic_ids_mapped:
-                tokens.append(self.new_tokenizer.decode([self.old_to_new_map[id]]))
-            else:
-                tokens.append(self.old_tokenizer.decode([id]))
+            tokens.append(self.decode([id]))
         return tokens
 
     def save_maps(self, new_to_old_map_path, old_to_new_map_path, replacement_character_map_path):
@@ -487,7 +525,8 @@ class MappingTokenizer:
         # remove the tokenizer objects and unicode_normalizer as they might not be pickleable
         state.pop('new_tokenizer', None)
         state.pop('old_tokenizer', None)
-        state.pop('unicode_normalizer', None)  # Remove the unicode_normalizer
+        state.pop('unicode_normalizer', None)  # remove the unicode_normalizer
+        state.pop('_new_specials_regex', None)  # remove the compiled regex pattern
         # store the paths instead
         state['new_tokenizer_path'] = self.new_tokenizer_path
         state['old_tokenizer_model_id'] = self.old_tokenizer_model_id
@@ -503,6 +542,13 @@ class MappingTokenizer:
         self.new_tokenizer = AutoTokenizer.from_pretrained(self.new_tokenizer_path)
         self.old_tokenizer = AutoTokenizer.from_pretrained(self.old_tokenizer_model_id)
         self.unicode_normalizer = UnicodeNormalizer()  # Recreate the unicode_normalizer
+        
+        # recreate the regex pattern from the special tokens list
+        if self.new_additional_tokens:
+            escaped = [re.escape(t) for t in sorted(self.new_additional_tokens, key=len, reverse=True)]
+            self._new_specials_regex = re.compile(f"({'|'.join(escaped)})")
+        else:
+            self._new_specials_regex = None
 
     def to_json(self):
         """Convert the object into a JSON string using the modified __dict__."""
@@ -548,10 +594,11 @@ def main():
     # Set up metadata paths
     token_id_language_map_path = os.path.join(metadata_dir, "token_id_language_map.json")
     token_text_language_map_path = os.path.join(metadata_dir, "token_text_language_map.json")
-    reusable_languages_path = os.path.join(metadata_dir, "reusable_languages.txt")
+    reusable_languages_path = os.path.join(metadata_dir, "vocabulary_languages.txt")
     new_to_old_map_path = os.path.join(metadata_dir, "new_to_old_map.json")
     old_to_new_map_path = os.path.join(metadata_dir, "old_to_new_map.json")
     replacement_character_map_path = os.path.join(metadata_dir, "replacement_character_map.json")
+    new_tokenizer_additional_special_tokens = config.get('special_tokens', {}).get('additional_special_tokens', None)
     
     # Get ranges path
     current_script_path = os.path.abspath(__file__)
@@ -570,18 +617,18 @@ def main():
             ranges_path = default_ranges_path
 
     token_classifier = TokenClassifier(
-        ranges_path=ranges_path,
         token_id_language_map_path=token_id_language_map_path,
         token_text_language_map_path=token_text_language_map_path,
         min_reusable_ids=config.get('min_reusable_count', 20000),
-        reusable_languages_path=reusable_languages_path,
-        preserved_languages=config.get('preserved_langs', []),
+        vocabulary_languages_path=reusable_languages_path,
+        target_language_scripts=config.get('target_language_scripts', []),
+        preserved_languages_scripts=config.get('preserved_languages_scripts', []),
         old_tokenizer_model_id=config['model_id'],
         hf_api_key=config.get('hf_token')
     )
 
     reusable_languages_with_ranges_dict, total_reusable_language_count = token_classifier.get_reusable_languages_and_count()
-
+    target_language_scripts_ranges = token_classifier.get_target_language_scripts_ranges()
     reusable_languages = list(reusable_languages_with_ranges_dict.keys())
 
     should_create_mapping = config.get('force', {}).get('mapping', False)
@@ -591,10 +638,12 @@ def main():
         old_tokenizer_model_id=config['model_id'],
         token_id_language_map_path=token_id_language_map_path,
         reusable_languages=reusable_languages,
+        target_language_scripts_ranges=target_language_scripts_ranges,
         cache_dir=cache_dir,
         new_to_old_map_path=new_to_old_map_path,
         old_to_new_map_path=old_to_new_map_path,
         replacement_character_map_path=replacement_character_map_path,
+        new_tokenizer_additional_special_tokens=new_tokenizer_additional_special_tokens,
         save_maps=should_create_mapping,
         debug_mode=args.debug
     )

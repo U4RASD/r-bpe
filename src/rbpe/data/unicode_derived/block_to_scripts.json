@@ -1,0 +1,1084 @@
+{
+  "adlam": [
+    "adlam"
+  ],
+  "aegean numbers": [
+    "common"
+  ],
+  "ahom": [
+    "ahom"
+  ],
+  "alchemical symbols": [
+    "common"
+  ],
+  "alphabetic presentation forms": [
+    "armenian",
+    "hebrew",
+    "latin"
+  ],
+  "anatolian hieroglyphs": [
+    "anatolian_hieroglyphs"
+  ],
+  "ancient greek musical notation": [
+    "greek"
+  ],
+  "ancient greek numbers": [
+    "greek"
+  ],
+  "ancient symbols": [
+    "common",
+    "greek"
+  ],
+  "arabic": [
+    "arabic",
+    "common",
+    "inherited"
+  ],
+  "arabic extended-a": [
+    "arabic",
+    "common"
+  ],
+  "arabic extended-b": [
+    "arabic"
+  ],
+  "arabic extended-c": [
+    "arabic"
+  ],
+  "arabic mathematical alphabetic symbols": [
+    "arabic"
+  ],
+  "arabic presentation forms-a": [
+    "arabic",
+    "common"
+  ],
+  "arabic presentation forms-b": [
+    "arabic",
+    "common"
+  ],
+  "arabic supplement": [
+    "arabic"
+  ],
+  "armenian": [
+    "armenian"
+  ],
+  "arrows": [
+    "common"
+  ],
+  "avestan": [
+    "avestan"
+  ],
+  "balinese": [
+    "balinese"
+  ],
+  "bamum": [
+    "bamum"
+  ],
+  "bamum supplement": [
+    "bamum"
+  ],
+  "basic latin": [
+    "common",
+    "latin"
+  ],
+  "bassa vah": [
+    "bassa_vah"
+  ],
+  "batak": [
+    "batak"
+  ],
+  "bengali": [
+    "bengali"
+  ],
+  "beria erfe": [
+    "beria_erfe"
+  ],
+  "bhaiksuki": [
+    "bhaiksuki"
+  ],
+  "block elements": [
+    "common"
+  ],
+  "bopomofo": [
+    "bopomofo"
+  ],
+  "bopomofo extended": [
+    "bopomofo"
+  ],
+  "box drawing": [
+    "common"
+  ],
+  "brahmi": [
+    "brahmi"
+  ],
+  "braille patterns": [
+    "braille"
+  ],
+  "buginese": [
+    "buginese"
+  ],
+  "buhid": [
+    "buhid"
+  ],
+  "byzantine musical symbols": [
+    "common"
+  ],
+  "carian": [
+    "carian"
+  ],
+  "caucasian albanian": [
+    "caucasian_albanian"
+  ],
+  "chakma": [
+    "chakma"
+  ],
+  "cham": [
+    "cham"
+  ],
+  "cherokee": [
+    "cherokee"
+  ],
+  "cherokee supplement": [
+    "cherokee"
+  ],
+  "chess symbols": [
+    "common"
+  ],
+  "chorasmian": [
+    "chorasmian"
+  ],
+  "cjk compatibility": [
+    "common",
+    "katakana"
+  ],
+  "cjk compatibility forms": [
+    "common"
+  ],
+  "cjk compatibility ideographs": [
+    "han"
+  ],
+  "cjk compatibility ideographs supplement": [
+    "han"
+  ],
+  "cjk radicals supplement": [
+    "han"
+  ],
+  "cjk strokes": [
+    "common"
+  ],
+  "cjk symbols and punctuation": [
+    "common",
+    "han",
+    "hangul",
+    "inherited"
+  ],
+  "cjk unified ideographs": [
+    "han"
+  ],
+  "cjk unified ideographs extension a": [
+    "han"
+  ],
+  "cjk unified ideographs extension b": [
+    "han"
+  ],
+  "cjk unified ideographs extension c": [
+    "han"
+  ],
+  "cjk unified ideographs extension d": [
+    "han"
+  ],
+  "cjk unified ideographs extension e": [
+    "han"
+  ],
+  "cjk unified ideographs extension f": [
+    "han"
+  ],
+  "cjk unified ideographs extension g": [
+    "han"
+  ],
+  "cjk unified ideographs extension h": [
+    "han"
+  ],
+  "cjk unified ideographs extension i": [
+    "han"
+  ],
+  "cjk unified ideographs extension j": [
+    "han"
+  ],
+  "combining diacritical marks": [
+    "inherited"
+  ],
+  "combining diacritical marks extended": [
+    "inherited"
+  ],
+  "combining diacritical marks for symbols": [
+    "inherited"
+  ],
+  "combining diacritical marks supplement": [
+    "inherited"
+  ],
+  "combining half marks": [
+    "cyrillic",
+    "inherited"
+  ],
+  "common indic number forms": [
+    "common"
+  ],
+  "control pictures": [
+    "common"
+  ],
+  "coptic": [
+    "coptic"
+  ],
+  "coptic epact numbers": [
+    "common",
+    "inherited"
+  ],
+  "counting rod numerals": [
+    "common"
+  ],
+  "cuneiform": [
+    "cuneiform"
+  ],
+  "cuneiform numbers and punctuation": [
+    "cuneiform"
+  ],
+  "currency symbols": [
+    "common"
+  ],
+  "cypriot syllabary": [
+    "cypriot"
+  ],
+  "cypro-minoan": [
+    "cypro_minoan"
+  ],
+  "cyrillic": [
+    "cyrillic",
+    "inherited"
+  ],
+  "cyrillic extended-a": [
+    "cyrillic"
+  ],
+  "cyrillic extended-b": [
+    "cyrillic"
+  ],
+  "cyrillic extended-c": [
+    "cyrillic"
+  ],
+  "cyrillic extended-d": [
+    "cyrillic"
+  ],
+  "cyrillic supplement": [
+    "cyrillic"
+  ],
+  "deseret": [
+    "deseret"
+  ],
+  "devanagari": [
+    "common",
+    "devanagari",
+    "inherited"
+  ],
+  "devanagari extended": [
+    "devanagari"
+  ],
+  "devanagari extended-a": [
+    "devanagari"
+  ],
+  "dingbats": [
+    "common"
+  ],
+  "dives akuru": [
+    "dives_akuru"
+  ],
+  "dogra": [
+    "dogra"
+  ],
+  "domino tiles": [
+    "common"
+  ],
+  "duployan": [
+    "duployan"
+  ],
+  "early dynastic cuneiform": [
+    "cuneiform"
+  ],
+  "egyptian hieroglyph format controls": [
+    "egyptian_hieroglyphs"
+  ],
+  "egyptian hieroglyphs": [
+    "egyptian_hieroglyphs"
+  ],
+  "egyptian hieroglyphs extended-a": [
+    "egyptian_hieroglyphs"
+  ],
+  "elbasan": [
+    "elbasan"
+  ],
+  "elymaic": [
+    "elymaic"
+  ],
+  "emoticons": [
+    "common"
+  ],
+  "enclosed alphanumeric supplement": [
+    "common"
+  ],
+  "enclosed alphanumerics": [
+    "common"
+  ],
+  "enclosed cjk letters and months": [
+    "common",
+    "hangul",
+    "katakana"
+  ],
+  "enclosed ideographic supplement": [
+    "common",
+    "hiragana"
+  ],
+  "ethiopic": [
+    "ethiopic"
+  ],
+  "ethiopic extended": [
+    "ethiopic"
+  ],
+  "ethiopic extended-a": [
+    "ethiopic"
+  ],
+  "ethiopic extended-b": [
+    "ethiopic"
+  ],
+  "ethiopic supplement": [
+    "ethiopic"
+  ],
+  "garay": [
+    "garay"
+  ],
+  "general punctuation": [
+    "common",
+    "inherited"
+  ],
+  "geometric shapes": [
+    "common"
+  ],
+  "geometric shapes extended": [
+    "common"
+  ],
+  "georgian": [
+    "common",
+    "georgian"
+  ],
+  "georgian extended": [
+    "georgian"
+  ],
+  "georgian supplement": [
+    "georgian"
+  ],
+  "glagolitic": [
+    "glagolitic"
+  ],
+  "glagolitic supplement": [
+    "glagolitic"
+  ],
+  "gothic": [
+    "gothic"
+  ],
+  "grantha": [
+    "grantha",
+    "inherited"
+  ],
+  "greek and coptic": [
+    "common",
+    "coptic",
+    "greek"
+  ],
+  "greek extended": [
+    "greek"
+  ],
+  "gujarati": [
+    "gujarati"
+  ],
+  "gunjala gondi": [
+    "gunjala_gondi"
+  ],
+  "gurmukhi": [
+    "gurmukhi"
+  ],
+  "gurung khema": [
+    "gurung_khema"
+  ],
+  "halfwidth and fullwidth forms": [
+    "common",
+    "hangul",
+    "katakana",
+    "latin"
+  ],
+  "hangul compatibility jamo": [
+    "hangul"
+  ],
+  "hangul jamo": [
+    "hangul"
+  ],
+  "hangul jamo extended-a": [
+    "hangul"
+  ],
+  "hangul jamo extended-b": [
+    "hangul"
+  ],
+  "hangul syllables": [
+    "hangul"
+  ],
+  "hanifi rohingya": [
+    "hanifi_rohingya"
+  ],
+  "hanunoo": [
+    "common",
+    "hanunoo"
+  ],
+  "hatran": [
+    "hatran"
+  ],
+  "hebrew": [
+    "hebrew"
+  ],
+  "hiragana": [
+    "common",
+    "hiragana",
+    "inherited"
+  ],
+  "ideographic description characters": [
+    "common"
+  ],
+  "ideographic symbols and punctuation": [
+    "han",
+    "khitan_small_script",
+    "nushu",
+    "tangut"
+  ],
+  "imperial aramaic": [
+    "imperial_aramaic"
+  ],
+  "indic siyaq numbers": [
+    "common"
+  ],
+  "inscriptional pahlavi": [
+    "inscriptional_pahlavi"
+  ],
+  "inscriptional parthian": [
+    "inscriptional_parthian"
+  ],
+  "ipa extensions": [
+    "latin"
+  ],
+  "javanese": [
+    "common",
+    "javanese"
+  ],
+  "kaithi": [
+    "kaithi"
+  ],
+  "kaktovik numerals": [
+    "common"
+  ],
+  "kana extended-a": [
+    "hiragana",
+    "katakana"
+  ],
+  "kana extended-b": [
+    "katakana"
+  ],
+  "kana supplement": [
+    "hiragana",
+    "katakana"
+  ],
+  "kanbun": [
+    "common"
+  ],
+  "kangxi radicals": [
+    "han"
+  ],
+  "kannada": [
+    "kannada"
+  ],
+  "katakana": [
+    "common",
+    "katakana"
+  ],
+  "katakana phonetic extensions": [
+    "katakana"
+  ],
+  "kawi": [
+    "kawi"
+  ],
+  "kayah li": [
+    "common",
+    "kayah_li"
+  ],
+  "kharoshthi": [
+    "kharoshthi"
+  ],
+  "khitan small script": [
+    "khitan_small_script"
+  ],
+  "khmer": [
+    "khmer"
+  ],
+  "khmer symbols": [
+    "khmer"
+  ],
+  "khojki": [
+    "khojki"
+  ],
+  "khudawadi": [
+    "khudawadi"
+  ],
+  "kirat rai": [
+    "kirat_rai"
+  ],
+  "lao": [
+    "lao"
+  ],
+  "latin extended additional": [
+    "latin"
+  ],
+  "latin extended-a": [
+    "latin"
+  ],
+  "latin extended-b": [
+    "latin"
+  ],
+  "latin extended-c": [
+    "latin"
+  ],
+  "latin extended-d": [
+    "common",
+    "latin"
+  ],
+  "latin extended-e": [
+    "common",
+    "greek",
+    "latin"
+  ],
+  "latin extended-f": [
+    "latin"
+  ],
+  "latin extended-g": [
+    "latin"
+  ],
+  "latin-1 supplement": [
+    "common",
+    "latin"
+  ],
+  "lepcha": [
+    "lepcha"
+  ],
+  "letterlike symbols": [
+    "common",
+    "greek",
+    "latin"
+  ],
+  "limbu": [
+    "limbu"
+  ],
+  "linear a": [
+    "linear_a"
+  ],
+  "linear b ideograms": [
+    "linear_b"
+  ],
+  "linear b syllabary": [
+    "linear_b"
+  ],
+  "lisu": [
+    "lisu"
+  ],
+  "lisu supplement": [
+    "lisu"
+  ],
+  "lycian": [
+    "lycian"
+  ],
+  "lydian": [
+    "lydian"
+  ],
+  "mahajani": [
+    "mahajani"
+  ],
+  "mahjong tiles": [
+    "common"
+  ],
+  "makasar": [
+    "makasar"
+  ],
+  "malayalam": [
+    "malayalam"
+  ],
+  "mandaic": [
+    "mandaic"
+  ],
+  "manichaean": [
+    "manichaean"
+  ],
+  "marchen": [
+    "marchen"
+  ],
+  "masaram gondi": [
+    "masaram_gondi"
+  ],
+  "mathematical alphanumeric symbols": [
+    "common"
+  ],
+  "mathematical operators": [
+    "common"
+  ],
+  "mayan numerals": [
+    "common"
+  ],
+  "medefaidrin": [
+    "medefaidrin"
+  ],
+  "meetei mayek": [
+    "meetei_mayek"
+  ],
+  "meetei mayek extensions": [
+    "meetei_mayek"
+  ],
+  "mende kikakui": [
+    "mende_kikakui"
+  ],
+  "meroitic cursive": [
+    "meroitic_cursive"
+  ],
+  "meroitic hieroglyphs": [
+    "meroitic_hieroglyphs"
+  ],
+  "miao": [
+    "miao"
+  ],
+  "miscellaneous mathematical symbols-a": [
+    "common"
+  ],
+  "miscellaneous mathematical symbols-b": [
+    "common"
+  ],
+  "miscellaneous symbols": [
+    "common"
+  ],
+  "miscellaneous symbols and arrows": [
+    "common"
+  ],
+  "miscellaneous symbols and pictographs": [
+    "common"
+  ],
+  "miscellaneous symbols supplement": [
+    "common"
+  ],
+  "miscellaneous technical": [
+    "common"
+  ],
+  "modi": [
+    "modi"
+  ],
+  "modifier tone letters": [
+    "common"
+  ],
+  "mongolian": [
+    "common",
+    "mongolian"
+  ],
+  "mongolian supplement": [
+    "mongolian"
+  ],
+  "mro": [
+    "mro"
+  ],
+  "multani": [
+    "multani"
+  ],
+  "musical symbols": [
+    "common",
+    "inherited"
+  ],
+  "myanmar": [
+    "myanmar"
+  ],
+  "myanmar extended-a": [
+    "myanmar"
+  ],
+  "myanmar extended-b": [
+    "myanmar"
+  ],
+  "myanmar extended-c": [
+    "myanmar"
+  ],
+  "nabataean": [
+    "nabataean"
+  ],
+  "nag mundari": [
+    "nag_mundari"
+  ],
+  "nandinagari": [
+    "nandinagari"
+  ],
+  "new tai lue": [
+    "new_tai_lue"
+  ],
+  "newa": [
+    "newa"
+  ],
+  "nko": [
+    "nko"
+  ],
+  "number forms": [
+    "common",
+    "latin"
+  ],
+  "nushu": [
+    "nushu"
+  ],
+  "nyiakeng puachue hmong": [
+    "nyiakeng_puachue_hmong"
+  ],
+  "ogham": [
+    "ogham"
+  ],
+  "ol chiki": [
+    "ol_chiki"
+  ],
+  "ol onal": [
+    "ol_onal"
+  ],
+  "old hungarian": [
+    "old_hungarian"
+  ],
+  "old italic": [
+    "old_italic"
+  ],
+  "old north arabian": [
+    "old_north_arabian"
+  ],
+  "old permic": [
+    "old_permic"
+  ],
+  "old persian": [
+    "old_persian"
+  ],
+  "old sogdian": [
+    "old_sogdian"
+  ],
+  "old south arabian": [
+    "old_south_arabian"
+  ],
+  "old turkic": [
+    "old_turkic"
+  ],
+  "old uyghur": [
+    "old_uyghur"
+  ],
+  "optical character recognition": [
+    "common"
+  ],
+  "oriya": [
+    "oriya"
+  ],
+  "ornamental dingbats": [
+    "common"
+  ],
+  "osage": [
+    "osage"
+  ],
+  "osmanya": [
+    "osmanya"
+  ],
+  "ottoman siyaq numbers": [
+    "common"
+  ],
+  "pahawh hmong": [
+    "pahawh_hmong"
+  ],
+  "palmyrene": [
+    "palmyrene"
+  ],
+  "pau cin hau": [
+    "pau_cin_hau"
+  ],
+  "phags-pa": [
+    "phags_pa"
+  ],
+  "phaistos disc": [
+    "common",
+    "inherited"
+  ],
+  "phoenician": [
+    "phoenician"
+  ],
+  "phonetic extensions": [
+    "cyrillic",
+    "greek",
+    "latin"
+  ],
+  "phonetic extensions supplement": [
+    "greek",
+    "latin"
+  ],
+  "playing cards": [
+    "common"
+  ],
+  "psalter pahlavi": [
+    "psalter_pahlavi"
+  ],
+  "rejang": [
+    "rejang"
+  ],
+  "rumi numeral symbols": [
+    "arabic"
+  ],
+  "runic": [
+    "common",
+    "runic"
+  ],
+  "samaritan": [
+    "samaritan"
+  ],
+  "saurashtra": [
+    "saurashtra"
+  ],
+  "sharada": [
+    "sharada"
+  ],
+  "sharada supplement": [
+    "sharada"
+  ],
+  "shavian": [
+    "shavian"
+  ],
+  "shorthand format controls": [
+    "common"
+  ],
+  "siddham": [
+    "siddham"
+  ],
+  "sidetic": [
+    "sidetic"
+  ],
+  "sinhala": [
+    "sinhala"
+  ],
+  "sinhala archaic numbers": [
+    "sinhala"
+  ],
+  "small form variants": [
+    "common"
+  ],
+  "small kana extension": [
+    "hiragana",
+    "katakana"
+  ],
+  "sogdian": [
+    "sogdian"
+  ],
+  "sora sompeng": [
+    "sora_sompeng"
+  ],
+  "soyombo": [
+    "soyombo"
+  ],
+  "spacing modifier letters": [
+    "bopomofo",
+    "common",
+    "latin"
+  ],
+  "specials": [
+    "common"
+  ],
+  "sundanese": [
+    "sundanese"
+  ],
+  "sundanese supplement": [
+    "sundanese"
+  ],
+  "sunuwar": [
+    "sunuwar"
+  ],
+  "superscripts and subscripts": [
+    "common",
+    "latin"
+  ],
+  "supplemental arrows-a": [
+    "common"
+  ],
+  "supplemental arrows-b": [
+    "common"
+  ],
+  "supplemental arrows-c": [
+    "common"
+  ],
+  "supplemental mathematical operators": [
+    "common"
+  ],
+  "supplemental punctuation": [
+    "common"
+  ],
+  "supplemental symbols and pictographs": [
+    "common"
+  ],
+  "sutton signwriting": [
+    "signwriting"
+  ],
+  "syloti nagri": [
+    "syloti_nagri"
+  ],
+  "symbols and pictographs extended-a": [
+    "common"
+  ],
+  "symbols for legacy computing": [
+    "common"
+  ],
+  "symbols for legacy computing supplement": [
+    "common"
+  ],
+  "syriac": [
+    "syriac"
+  ],
+  "syriac supplement": [
+    "syriac"
+  ],
+  "tagalog": [
+    "tagalog"
+  ],
+  "tagbanwa": [
+    "tagbanwa"
+  ],
+  "tags": [
+    "common"
+  ],
+  "tai le": [
+    "tai_le"
+  ],
+  "tai tham": [
+    "tai_tham"
+  ],
+  "tai viet": [
+    "tai_viet"
+  ],
+  "tai xuan jing symbols": [
+    "common"
+  ],
+  "tai yo": [
+    "tai_yo"
+  ],
+  "takri": [
+    "takri"
+  ],
+  "tamil": [
+    "tamil"
+  ],
+  "tamil supplement": [
+    "tamil"
+  ],
+  "tangsa": [
+    "tangsa"
+  ],
+  "tangut": [
+    "tangut"
+  ],
+  "tangut components": [
+    "tangut"
+  ],
+  "tangut components supplement": [
+    "tangut"
+  ],
+  "tangut supplement": [
+    "tangut"
+  ],
+  "telugu": [
+    "telugu"
+  ],
+  "thaana": [
+    "thaana"
+  ],
+  "thai": [
+    "common",
+    "thai"
+  ],
+  "tibetan": [
+    "common",
+    "tibetan"
+  ],
+  "tifinagh": [
+    "tifinagh"
+  ],
+  "tirhuta": [
+    "tirhuta"
+  ],
+  "todhri": [
+    "todhri"
+  ],
+  "tolong siki": [
+    "tolong_siki"
+  ],
+  "toto": [
+    "toto"
+  ],
+  "transport and map symbols": [
+    "common"
+  ],
+  "tulu-tigalari": [
+    "tulu_tigalari"
+  ],
+  "ugaritic": [
+    "ugaritic"
+  ],
+  "unified canadian aboriginal syllabics": [
+    "canadian_aboriginal"
+  ],
+  "unified canadian aboriginal syllabics extended": [
+    "canadian_aboriginal"
+  ],
+  "unified canadian aboriginal syllabics extended-a": [
+    "canadian_aboriginal"
+  ],
+  "vai": [
+    "vai"
+  ],
+  "variation selectors": [
+    "inherited"
+  ],
+  "variation selectors supplement": [
+    "inherited"
+  ],
+  "vedic extensions": [
+    "common",
+    "inherited"
+  ],
+  "vertical forms": [
+    "common"
+  ],
+  "vithkuqi": [
+    "vithkuqi"
+  ],
+  "wancho": [
+    "wancho"
+  ],
+  "warang citi": [
+    "warang_citi"
+  ],
+  "yezidi": [
+    "yezidi"
+  ],
+  "yi radicals": [
+    "yi"
+  ],
+  "yi syllables": [
+    "yi"
+  ],
+  "yijing hexagram symbols": [
+    "common"
+  ],
+  "zanabazar square": [
+    "zanabazar_square"
+  ],
+  "znamenny musical notation": [
+    "common",
+    "inherited"
+  ]
+}

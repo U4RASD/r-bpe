@@ -300,7 +300,8 @@ class RBPETokenizer:
         cleaned_data_dir = config.get('cleaned_data_dir')
         hf_token = config.get('hf_token')
         min_reusable_count = config.get('min_reusable_count', 20000)
-        preserved_langs = config.get('preserved_langs', [])
+        target_language_scripts = config.get('target_language_scripts', [])
+        preserved_languages_scripts = config.get('preserved_languages_scripts', [])
         
         # Generate default output_dir if not provided
         if not output_dir and model_id:
@@ -315,7 +316,7 @@ class RBPETokenizer:
         
         # Extract special tokens
         special_tokens = config.get('special_tokens', {})
-        additional_special_tokens = special_tokens.get('additional_special_tokens', [])
+        additional_special_tokens = special_tokens.pop('additional_special_tokens', [])
         
         # Create instance with parameters
         instance = cls.__new__(cls)
@@ -326,7 +327,8 @@ class RBPETokenizer:
             cleaned_data_dir=cleaned_data_dir,
             hf_token=hf_token,
             min_reusable_count=min_reusable_count,
-            preserved_langs=preserved_langs,
+            target_language_scripts=target_language_scripts,
+            preserved_languages_scripts=preserved_languages_scripts,
             force_classify=force_classify,
             force_clean=force_clean,
             force_train=force_train,
@@ -344,7 +346,8 @@ class RBPETokenizer:
                   cleaned_data_dir: str = None,
                   hf_token: str = None,
                   min_reusable_count: int = 20000,
-                  preserved_langs: list = None,
+                  target_language_scripts: list = None,
+                  preserved_languages_scripts: list = None,
                   force_classify: bool = False,
                   force_clean: bool = False,
                   force_train: bool = False,
@@ -366,7 +369,8 @@ class RBPETokenizer:
             cleaned_data_dir (str, optional): Where to store cleaned data
             hf_token (str, optional): Hugging Face API token
             min_reusable_count (int, optional): Min token count for a reusable language. Default is 20000.
-            preserved_langs (list, optional): Languages to preserve
+            target_language_scripts (list, optional): Target languages of the new tokenizer
+            preserved_languages_scripts (list, optional): Languages to preserve
             force_classify (bool, optional): Force token classification even if exists
             force_clean (bool, optional): Force data cleaning even if already exists
             force_train (bool, optional): Force tokenizer training even if exists
@@ -382,7 +386,8 @@ class RBPETokenizer:
         Returns:
             RBPETokenizer: Initialized tokenizer instance
         """
-        preserved_langs = preserved_langs or []
+        target_language_scripts = target_language_scripts or []
+        preserved_languages_scripts = preserved_languages_scripts or []
         
         # Generate default output_dir if not provided
         if not output_dir and model_id:
@@ -397,7 +402,8 @@ class RBPETokenizer:
             cleaned_data_dir=cleaned_data_dir,
             hf_token=hf_token,
             min_reusable_count=min_reusable_count,
-            preserved_langs=preserved_langs,
+            target_language_scripts=target_language_scripts,
+            preserved_languages_scripts=preserved_languages_scripts,
             force_classify=force_classify,
             force_clean=force_clean,
             force_train=force_train,
@@ -414,18 +420,13 @@ class RBPETokenizer:
         return instance
     
     def _init_from_params(self, model_id, output_dir, training_data_dir, cleaned_data_dir=None,
-                         hf_token=None, min_reusable_count=20000, preserved_langs=None,
+                         hf_token=None, min_reusable_count=20000, target_language_scripts=None, preserved_languages_scripts=None,
                          force_classify=False, force_clean=False, force_train=False, force_mapping=False, additional_special_tokens=None, **special_tokens):
         """Internal method to initialize from parameters."""
-        # Dynamically find the path to the unicode_ranges.txt file
-        current_script_path = os.path.abspath(__file__)
-        rbpe_dir = os.path.dirname(current_script_path)
-        src_dir = os.path.dirname(rbpe_dir)
-        rbpe_repo_dir = os.path.dirname(src_dir)
-        self.DEFAULT_RANGES_FILE = os.path.join(rbpe_repo_dir, "inputs", "unicode_ranges.txt")
+        target_language_scripts = target_language_scripts or []
         
         self.tokenizer = None
-        preserved_langs = preserved_langs or []
+        preserved_languages_scripts = preserved_languages_scripts or []
         
         # Validate required parameters
         if not model_id:
@@ -478,7 +479,6 @@ class RBPETokenizer:
             "tokenizer_dir": tokenizer_dir,
             "metadata_dir": metadata_dir,
             "cache_dir": cache_dir,
-            "ranges_path": self.DEFAULT_RANGES_FILE,
             "token_id_language_map_path": token_id_language_map_path,
             "token_text_language_map_path": token_text_language_map_path,
             "vocabulary_languages_path": vocabulary_languages_path,
@@ -487,7 +487,8 @@ class RBPETokenizer:
             "replacement_character_map_path": replacement_character_map_path,
             "output_reusable_samples_path": output_reusable_samples_path,
             "min_reusable_ids": min_reusable_count,
-            "preserved_languages": preserved_langs,
+            "target_language_scripts": target_language_scripts,
+            "preserved_languages_scripts": preserved_languages_scripts,
             "hf_api_key": hf_token,
             "additional_special_tokens": additional_special_tokens,
             "force_classify": force_classify,
@@ -536,12 +537,12 @@ class RBPETokenizer:
         # Step 1: Token Classification
         logger.info("1. Initializing TokenClassifier...")
         token_classifier = TokenClassifier(
-            ranges_path=self.config['ranges_path'],
             token_id_language_map_path=self.config['token_id_language_map_path'],
             token_text_language_map_path=self.config['token_text_language_map_path'],
             min_reusable_ids=self.config['min_reusable_ids'],
             vocabulary_languages_path=self.config['vocabulary_languages_path'],
-            preserved_languages=self.config['preserved_languages'],
+            target_language_scripts=self.config['target_language_scripts'],
+            preserved_languages_scripts=self.config['preserved_languages_scripts'],
             old_tokenizer_model_id=self.config['model_id'],
             hf_api_key=self.config.get('hf_api_key'),
             save_classified_tokens=should_classify
@@ -549,6 +550,7 @@ class RBPETokenizer:
 
         # Get reusable languages and ranges
         reusable_languages_dict, total_reusable_count = token_classifier.get_reusable_languages_and_count()
+        target_language_scripts_ranges = token_classifier.get_target_language_scripts_ranges()
         
         # Step 2: Clean Data if needed
         should_clean = self.config.get('force_clean', False)
@@ -607,11 +609,13 @@ class RBPETokenizer:
                 old_tokenizer_model_id=self.config['model_id'],
                 token_id_language_map_path=self.config['token_id_language_map_path'],
                 reusable_languages=list(reusable_languages_dict.keys()),
+                target_language_scripts_ranges=target_language_scripts_ranges,
                 cache_dir=self.config['cache_dir'],
                 new_to_old_map_path=self.config['new_to_old_map_path'],
                 old_to_new_map_path=self.config['old_to_new_map_path'],
                 replacement_character_map_path=self.config['replacement_character_map_path'],
-                save_maps=True
+                new_tokenizer_additional_special_tokens=self.config['additional_special_tokens'],
+                save_maps=True,
             )
             
             logger.info("Mapping creation completed")
@@ -624,10 +628,12 @@ class RBPETokenizer:
                 old_tokenizer_model_id=self.config['model_id'],
                 token_id_language_map_path=self.config['token_id_language_map_path'],
                 reusable_languages=list(reusable_languages_dict.keys()),
+                target_language_scripts_ranges=target_language_scripts_ranges,
                 cache_dir=self.config['cache_dir'],
                 new_to_old_map_path=self.config['new_to_old_map_path'],
                 old_to_new_map_path=self.config['old_to_new_map_path'],
                 replacement_character_map_path=self.config['replacement_character_map_path'],
+                new_tokenizer_additional_special_tokens=self.config['additional_special_tokens'],
                 save_maps=False
             )
         

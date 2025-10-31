@@ -1,0 +1,24 @@
+model_id: "meta-llama/Llama-3.1-8B"
+hf_token: "XXXXXXXXXXXXXXXXXXXXXXXXXXXX" # Put your Hugging Face token here
+output_dir: "./outputs/rbpe-llama3"
+training_data_dir: "/data"
+cleaned_data_dir: "/cleaned_data"
+min_reusable_count: 30000
+target_language_scripts: # Target language scripts of the new tokenizer and that will be preserved, unicode script names or aliases
+  - arabic
+preserved_languages_scripts: # Language scripts to preserve and exclude from reuse, unicode script names or aliases
+  - latin
+  - greek
+special_tokens:
+  pad_token: <PAD>
+  unk_token: <UNK>
+  bos_token: <BOS_TOKEN>
+  eos_token: <EOS_TOKEN>
+  mask_token: <MASK_TOKEN>
+  sep_token: <SEP>
+  cls_token: <CLS>
+force:
+  classify: true
+  clean: true
+  train: true
+  mapping: true

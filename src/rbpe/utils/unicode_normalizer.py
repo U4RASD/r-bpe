@@ -1,21 +1,13 @@
 import pickle
 import re
-import os
+from pathlib import Path
 
 class UnicodeNormalizer:
     def __init__(self):
         """
         Initialize the normalizer with a unicode map.
-        
-        Args:
-            unicode_map_path (str): Path to the unicode map pickle file
         """
-        current_file = os.path.abspath(__file__)
-        utils_dir = os.path.dirname(current_file)
-        rbpe_dir = os.path.dirname(utils_dir)
-        src_dir = os.path.dirname(rbpe_dir)
-        rbpe_repo_dir = os.path.dirname(src_dir)
-        self.unicode_map_path = os.path.join(rbpe_repo_dir, "inputs", "arabic_chars_rbpe_norm.pickle")
+        self.unicode_map_path = Path(__file__).parent.parent / "data" / "arabic_chars_rbpe_norm.pickle"
         self.unicode_map = self._load_unicode_map(self.unicode_map_path)
     
     def _load_unicode_map(self, map_path: str) -> dict:

@@ -41,7 +41,7 @@ setup(
     package_dir={"": "src"},
     include_package_data=True,
     package_data={
-        "": ["inputs/*", "outputs/*"],
+        "": ["data/*"],
     },
     python_requires=">=3.10.12",
     install_requires=requirements,
