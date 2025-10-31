@@ -1,15 +1,14 @@
 # R-BPE: Improving BPE-Tokenizers with Token Reuse
 
-This repository accompanies the paper introducing R-BPE, a lightweight framework for adapting existing Byte-Pair Encoding (BPE) tokenizers to better support a specified target language. The method is demonstrated using Arabic as the target language. R-BPE reuses tokens from
-user-excluded languages and creates ID-based maps to resolve the new tokens of the chosen language. It is compatible with HuggingFace interfaces and thereby readily applicable to a wide range of existing models.
+This repository accompanies the paper introducing R-BPE, a lightweight framework for adapting existing Byte-Pair Encoding (BPE) tokenizers to better support a specified target language. The method is demonstrated using Arabic as the target language. R-BPE reuses tokens from user-excluded languages and creates ID-based maps to resolve the new tokens of the chosen language. It is compatible with HuggingFace interfaces and thereby readily applicable to a wide range of existing models.
 
 ## Overview
-The RBPETokenizer orchestrates the entire process of:
-1. Classifying tokens via TokenClassifier.
-2. Cleaning data using DataCleaner.
-3. Training a new BPE tokenizer with BPETokenizerTrainer.
-4. Creating mappings between the original and new tokenizer with MappingTokenizer.
-5. Returning a final R-BPE tokenizer adapted to the target language.
+The `RBPETokenizer` orchestrates the entire process of:
+1. Classifying vocabulary tokens languages via `TokenClassifier`.
+2. Cleaning training data using `DataCleaner`.
+3. Training a new BPE tokenizer with `BPETokenizerTrainer`.
+4. Creating mappings between the original and new tokenizer with `MappingTokenizer`.
+5. Returning a final `RBPETokenizer` adapted to the target language.
 
 ## Prerequisites
 
@@ -34,71 +33,55 @@ R-BPE uses the following configuration parameters:
 
 | Parameter | Meaning | Necessity | Default Value|
 |-----|-------|-------| -------|
-| model_id | The HuggingFace model id of the original tokenizer's model. | Required | None |
-| output_dir | The output directory where the R-BPE tokenizer will be saved. | Optional | rbpe_{model_id} |
-| training_data_dir | The directory where the training data for the new tokenizer is. | Required | None |
-| cleaned_data_dir | The directory where the cleaned training data for the new tokenizer is, or should be saved (if it's empty). | Optional | {output_dir}/{cleaned_data} |
-| min_reusable_count | Minimum number of tokens needed for reuse (threshold ***_h_*** in the paper). | Optional | 20000 |
-| target_language_scripts | The unicode script names or aliases of the target language. | Optional | Arabic |
-| preserved_languages_scripts | The unicode script names or aliases of the languages that must be preserved. The target language scripts are preserved by default. | Optional | Latin, Greek |
-| special_tokens | Custom special tokens for the main special tokens like bos_token, eos_token, pad_token, etc. | Optional | None |
-| additional_special_tokens | Any additional special tokens the _new_ tokenizer will have. | Optional | None |
-| force_classify | Force classify vocabulary tokens. | Optional | False |
-| force_clean | Force clean training data. | Optional | False |
-| force_train | Force train a new tokenizer. | Optional | False |
-| force_mapping | Force create the new to old and old to new maps. | Optional | False |
-
-The current Unicode data R-BPE uses is the [Unicode 17](https://www.unicode.org/versions/Unicode17.0.0/) data. You can refer to [this](#specifying-language-scripts) table for all the language scripts you can specify.
+| model_id | The HuggingFace model id of the original tokenizer. e.g. `meta-llama/Llama-3.1-8B` | Required | None |
+| training_data_dir | The directory where the training data for the new tokenizer is stored. | Required | None |
+| clean_data| Whether to clean the training data or not. Warning: only set to false if you are sure that your training data does not include any non-preserved languages. | Required | True |
+| cleaned_data_dir | The directory where the cleaned training data for the new tokenizer should be saved. | Optional | None |
+| hf_token | The HuggingFace access token. | Required | None |
+| min_reusable_count | The minimum number of tokens needed for reuse (threshold ***_h_*** in the paper). The size of the new tokenizer vocabulary will be <= `min_reusable_count` depending on how many reusable tokens are found in the specified original tokenizer. | Optional | 20000 |
+| target_language_scripts | List of the unicode script names or aliases of the target language. See [this](#specifying-language-scripts) table for possible values. | Optional | Arabic |
+| preserved_languages_scripts | List of the unicode script names or aliases of the languages that must be preserved. The target language scripts are preserved by default. See [this](#specifying-language-scripts) table for possible values. | Optional | Latin, Greek |
+| special_tokens | Dictionary of custom special tokens values for the main special tokens: `pad_token`, `unk_token`, `bos_token`, `mask_token`, `sep_token`, `cls_token`. | Optional | None |
+| additional_special_tokens | List of additional special tokens the _new_ tokenizer will have. | Optional | None |
+| apply_rbpe_arabic_norm | Whether to apply the R-BPE Arabic normalization during encoding or not. | optional | True |
 
 #### Using the CLI
 
+You have to supply `output_dir` which is the path where the created `RBPETokenizer` should be saved.
+
 ```bash
-python -m rbpe.rbpe_tokenizer --config path/to/config.yaml
+rbpe create-tokenizer --config path/to/config.yaml --output_dir path/to/tokenizer_output_dir
 ```
 or 
 
 ```bash
-python -m rbpe.rbpe_tokenizer --model_id CohereForAI/c4ai-command-r-v01 --output_dir ./rbpe_tokenizer --training_data_dir ./data  --cleaned_data_dir ./data_cleaned --hf_token YOUR_TOKEN
+rbpe create-tokenizer --output_dir path/to/tokenizer_output_dir --model_id meta-llama/Llama-3.1-8B --output_dir ./rbpe_tokenizer --training_data_dir ./data --hf_token YOUR_TOKEN
 ```
 
 #### Using the Python API
 
 ```python
-from rbpe.rbpe_tokenizer import RBPETokenizer
+from rbpe import RBPETokenizer
 
 # From a YAML config file
 tokenizer_factory = RBPETokenizer.from_config('path/to/config.yaml')
 
 # Or with explicit parameters
-tokenizer_factory = RBPETokenizer.from_params(
-    model_id='CohereForAI/c4ai-command-r-v01',
-    output_dir='./rbpe_tokenizer'
+tokenizer_factory = RBPETokenizer(
+    model_id='meta-llama/Llama-3.1-8B',
     training_data_dir='./data',
     cleaned_data_dir='./data_cleaned',
     target_language_scripts=['arabic'],
     preserved_languages_scripts=['latin', 'greek'],
-    force_clean=True,
-    force_train=True
 )
 
 # Prepare the tokenizer
 tokenizer = tokenizer_factory.prepare()
 
-# you can directly use the tokenizer now
+# You can directly use the tokenizer now
 
 # Save the prepared R-BPE tokenizer for future use
-tokenizer.save_pretrained('./rbpe_tokenizer')
-```
-
-## R-BPE Output Structure
-
-Creating an R-BPE tokenizer will result in the following output directory encapsulating the R-BPE tokenizer:
-
-```
-output_dir/
-├── tokenizer/      # The new tokenizer
-├── metadata/       # R-BPE tokenizer metadata including new to old and old to new maps.
-├── cache/          # Cache for downloaded tokenizers.
+tokenizer.save_pretrained('./rbpe_llama3_8b_tokenizer')
 ```
 
 ## Using an R-BPE tokenizer
@@ -106,9 +89,9 @@ output_dir/
 Once you have created your R-BPE tokenizer, you can use it the same way you use any HuggingFace tokenizer:
 
 ```python
-from rbpe.rbpe_tokenizer import RBPETokenizer
+from rbpe import RBPETokenizer
 
-tokenizer = RBPETokenizer.from_pretrained('path/to/tokenizer_output_dir')
+tokenizer = RBPETokenizer.from_pretrained('./rbpe_llama3_8b_tokenizer')
 
 text = 'مرحبا'
 encoded = tokenizer(text)
@@ -122,7 +105,7 @@ print('Decoded:', decoded)
 
 Language script specification is case insensitive. The following table shows all possible values you can use which are derived from the [Unicode 17](https://www.unicode.org/versions/Unicode17.0.0/) data:
 
-| Language Script Name | Alias |
+| Script Name | Script Alias |
 |-----|-------|
 | adlam | adlm |
 | ahom | ahom |
