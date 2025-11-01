@@ -11,11 +11,13 @@ requires-python = ">=3.10.12"
 license = {text = "MIT"}
 authors = [
     {name = "Nancy Hamdan", email = "nhamdan@dohainstitute.edu.qa"},
-    {name = "Osama Rakan Al Mraikhat", email = "oalmraikhat@dohainstitute.edu.qa"}
+    {name = "Osama Rakan Al Mraikhat", email = "oalmraikhat@dohainstitute.edu.qa"},
+    {name = "Digital Research Unit - Arab Center", email = "dru@dohainstitute.edu.qa"}
 ]
 maintainers = [
     {name = "Nancy Hamdan", email = "nhamdan@dohainstitute.edu.qa"},
-    {name = "Osama Rakan Al Mraikhat", email = "oalmraikhat@dohainstitute.edu.qa"}
+    {name = "Osama Rakan Al Mraikhat", email = "oalmraikhat@dohainstitute.edu.qa"},
+    {name = "Digital Research Unit - Arab Center", email = "dru@dohainstitute.edu.qa"}
 ]
 keywords = ["tokenizer", "bpe", "nlp", "arabic", "transformers", "low-resource-nlp", "large-language-models", "bpe-tokenizer", "vocabulary-adaptation"]
 dependencies = [
