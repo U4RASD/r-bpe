@@ -105,6 +105,9 @@ print('Decoded:', decoded)
 
 Language script specification is case insensitive. The following table shows all possible values you can use which are derived from the [Unicode 17](https://www.unicode.org/versions/Unicode17.0.0/) data:
 
+<details>
+<summary>Click to expand language scripts table</summary>
+
 | Script Name | Script Alias |
 |-----|-------|
 | adlam | adlm |
@@ -283,3 +286,5 @@ Language script specification is case insensitive. The following table shows all
 | yezidi | yezi |
 | yi | yiii |
 | zanabazar_square | zanb |
+
+</details>
