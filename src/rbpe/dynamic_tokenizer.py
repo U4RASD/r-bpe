@@ -101,7 +101,7 @@ def create_dynamic_tokenizer(base_class, mapping_tokenizer: MappingTokenizer, co
                     - current_vocab_size: Current size of the vocab
                     - new_tokens_count: Number of new tokens added
             """
-            original_tokenizer = AutoTokenizer.from_pretrained(self.mapping_tokenizer.old_tokenizer_model_id)
+            original_tokenizer = AutoTokenizer.from_pretrained(self.custom_tokenizer_config['model_id'])
             original_vocab_size = len(original_tokenizer.get_vocab())
             current_vocab_size = len(self.get_vocab())
             new_tokens_count = current_vocab_size - original_vocab_size
