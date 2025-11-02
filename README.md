@@ -37,7 +37,7 @@ R-BPE uses the following configuration parameters:
 | training_data_dir | The directory where the training data for the new tokenizer is stored. | Required | None |
 | clean_data| Whether to clean the training data or not. Warning: only set to false if you are sure that your training data does not include any non-preserved languages. | Required | True |
 | cleaned_data_dir | The directory where the cleaned training data for the new tokenizer should be saved. | Optional | None |
-| hf_token | The HuggingFace access token. | Required | None |
+| hf_token | The HuggingFace access token. If not provided, falls back to `HF_TOKEN` environment variable. | Required | None |
 | min_reusable_count | The minimum number of tokens needed for reuse (threshold ***_h_*** in the paper). The size of the new tokenizer vocabulary will be <= `min_reusable_count` depending on how many reusable tokens are found in the specified original tokenizer. | Optional | 20000 |
 | target_language_scripts | List of the unicode script names or aliases of the target language. See [this](#specifying-language-scripts) table for possible values. | Optional | Arabic |
 | preserved_languages_scripts | List of the unicode script names or aliases of the languages that must be preserved. The target language scripts are preserved by default. See [this](#specifying-language-scripts) table for possible values. | Optional | Latin, Greek |
