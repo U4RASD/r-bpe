@@ -12,15 +12,49 @@ The `RBPETokenizer` orchestrates the entire process of:
 
 ## Prerequisites
 
+### Installation from GitHub
+
+#### Using pip
+```bash
+pip install git+https://github.com/U4RASD/r-bpe.git
+```
+
+#### Using uv
+```bash
+uv add git+https://github.com/U4RASD/r-bpe.git
+```
+
+### Installation from Local Directory
+
+#### Using pip
+
 1. Create and activate a virtual environment:
 ```bash
 python -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
 2. Install the package:
 ```bash
 pip install .
+```
+
+#### Using uv
+
+1. Install uv if you haven't already:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+2. Create a virtual environment and install the package:
+```bash
+uv venv venv
+source venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+3. Install the package:
+```bash
+uv sync
 ```
 
 ## Creating an R-BPE Tokenizer

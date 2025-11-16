@@ -2,26 +2,51 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "rbpe"
 version = "0.1.0"
 description = "R-BPE: Improving BPE-Tokenizers with Token Reuse"
 readme = "README.md"
 requires-python = ">=3.10.12"
-dependencies = [
-    "transformers==4.49.0",
-    "datasets==3.0.0",
-    "pytest==8.3.4",
-    "torch==2.4.0",
-    "tqdm==4.66.5",
-    "click==7.0"
+license = {text = "MIT"}
+authors = [
+    {name = "Nancy Hamdan", email = "nhamdan@dohainstitute.edu.qa"},
+    {name = "Osama Rakan Al Mraikhat", email = "oalmraikhat@dohainstitute.edu.qa"},
+    {name = "Digital Research Unit - Arab Center", email = "dru@dohainstitute.edu.qa"}
 ]
+maintainers = [
+    {name = "Nancy Hamdan", email = "nhamdan@dohainstitute.edu.qa"},
+    {name = "Osama Rakan Al Mraikhat", email = "oalmraikhat@dohainstitute.edu.qa"},
+    {name = "Digital Research Unit - Arab Center", email = "dru@dohainstitute.edu.qa"}
+]
+keywords = ["tokenizer", "bpe", "nlp", "arabic", "transformers", "low-resource-nlp", "large-language-models", "bpe-tokenizer", "vocabulary-adaptation"]
+dependencies = [
+    "transformers>=4.49.0",
+    "datasets>=3.0.0",
+    "pytest>=7.0.0",
+    "torch>=2.4.0",
+    "tqdm>=4.60.0",
+    "click>=7.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/U4RASD/r-bpe"
+Repository = "https://github.com/U4RASD/r-bpe"
+Issues = "https://github.com/U4RASD/r-bpe/issues"
+Documentation = "https://github.com/U4RASD/r-bpe#readme"
 
 [project.scripts]
 rbpe = "rbpe.cli:rbpe"
 
+[tool.uv]
+package = true
+
+[dependency-groups]
+dev = []
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/rbpe"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"src/rbpe/data" = "rbpe/data"
