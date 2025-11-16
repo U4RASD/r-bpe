@@ -2,17 +2,12 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
 name = "rbpe"
-version = "0.1.0"
+version = "0.1.1"
 description = "R-BPE: Improving BPE-Tokenizers with Token Reuse"
 readme = "README.md"
 requires-python = ">=3.10.12"
-license = {text = "MIT"}
 authors = [
     {name = "Nancy Hamdan", email = "nhamdan@dohainstitute.edu.qa"},
     {name = "Osama Rakan Al Mraikhat", email = "oalmraikhat@dohainstitute.edu.qa"},
