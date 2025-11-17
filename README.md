@@ -16,12 +16,12 @@ The `RBPETokenizer` orchestrates the entire process of:
 
 #### Using pip
 ```bash
-pip install git+https://github.com/U4RASD/r-bpe.git
+pip install rbpe
 ```
 
 #### Using uv
 ```bash
-uv add git+https://github.com/U4RASD/r-bpe.git
+uv add rbpe 
 ```
 
 ### Installation from Local Directory
