@@ -138,7 +138,7 @@ print('Decoded:', decoded)
 ## Citation
 
 If you use R-BPE, please cite:
-```
+```bibtex
 @inproceedings{hamdan-etal-2025-r,
     title = "{R}-{BPE}: Improving {BPE}-Tokenizers with Token Reuse",
     author = "Hamdan, Nancy  and
