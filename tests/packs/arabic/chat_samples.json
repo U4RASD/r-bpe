@@ -1,0 +1,17 @@
+[
+  [
+    {"role": "system",    "content": "You are a helpful assistant."},
+    {"role": "user",      "content": "What is the weather like today?"},
+    {"role": "assistant", "content": "I cannot provide real-time weather information."}
+  ],
+  [
+    {"role": "system",    "content": "أنت مساعد مفيد."},
+    {"role": "user",      "content": "ما هو الطقس في طوكيو؟"},
+    {"role": "assistant", "content": "لا يمكنني تقديم معلومات الطقس في الوقت الفعلي."}
+  ],
+  [
+    {"role": "system",    "content": "You are a helpful assistant. أنت مساعد مفيد."},
+    {"role": "user",      "content": "How do you say 'hello' in Arabic? كيف تقول 'مرحبا' بالإنجليزية؟"},
+    {"role": "assistant", "content": "Hello in Arabic is مرحبا (marhaba)."}
+  ]
+]

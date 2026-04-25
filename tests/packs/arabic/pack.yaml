@@ -1,0 +1,6 @@
+name: arabic
+target_language_scripts:
+  - arabic
+preserved_languages_scripts:
+  - latin
+  - greek
