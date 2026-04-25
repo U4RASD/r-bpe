@@ -41,7 +41,10 @@ rbpe = "rbpe.cli:rbpe"
 package = true
 
 [dependency-groups]
-dev = []
+dev = ["ruff>=0.15.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rbpe"]
+
+[tool.ruff]
+target-version = "py310"

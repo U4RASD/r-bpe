@@ -1,21 +1,18 @@
 import os
-import json
 from tqdm import tqdm
-import yaml
 from datasets import Dataset, DatasetDict, load_from_disk
-from .token_classifier import TokenClassifier
-from huggingface_hub import login
 import logging
 from pathlib import Path
 
-logger = logging.getLogger('BPE')
+logger = logging.getLogger("BPE")
+
 
 class DataCleaner:
     def __init__(
         self,
         data_dir: str,
         reusable_languages_with_ranges: dict,
-        cleaned_data_dir: str = None
+        cleaned_data_dir: str = None,
     ):
         """
         Initializes the DataCleaner with the dataset and reusable languages configurations.
@@ -25,20 +22,28 @@ class DataCleaner:
             reusable_languages_with_ranges (dict): Dictionary containing reusable languages and their character ranges.
             cleaned_data_dir (str, optional): Directory to save the cleaned dataset.
         """
-        logger.info(f"Initializing DataCleaner with {len(reusable_languages_with_ranges)} reusable languages")
+        logger.info(
+            f"Initializing DataCleaner with {len(reusable_languages_with_ranges)} reusable languages"
+        )
         self.dataset = self.load_dataset(data_dir)
         self.language_ranges = reusable_languages_with_ranges
-        self.samples_with_reusable_langs_file = self._initialize_reusable_file(cleaned_data_dir)
+        self.samples_with_reusable_langs_file = self._initialize_reusable_file(
+            cleaned_data_dir
+        )
         self.cleaned_data_dir = cleaned_data_dir
 
     def _initialize_reusable_file(self, cleaned_data_dir: str):
         """Initializes the samples containing reusable languages file if a path is provided."""
         if cleaned_data_dir:
-            filepath = Path(cleaned_data_dir) / 'samples_with_reusable_langs.txt'
+            filepath = Path(cleaned_data_dir) / "samples_with_reusable_langs.txt"
             os.makedirs(filepath.parent, exist_ok=True)
-            logger.debug(f"Initializing samples containing reusable languages file at: {filepath}")
-            return open(filepath, 'w', encoding='utf-8')
-        logger.debug("No cleaned_data_dir provided, skipping logging samples with reusable languages")
+            logger.debug(
+                f"Initializing samples containing reusable languages file at: {filepath}"
+            )
+            return open(filepath, "w", encoding="utf-8")
+        logger.debug(
+            "No cleaned_data_dir provided, skipping logging samples with reusable languages"
+        )
         return None
 
     def detect_languages(self, text: str) -> set:
@@ -75,7 +80,9 @@ class DataCleaner:
             if isinstance(dataset, DatasetDict):
                 logger.debug(f"Loaded dataset with splits: {list(dataset.keys())}")
                 for split_name, split_dataset in dataset.items():
-                    logger.debug(f"Split '{split_name}' has {len(split_dataset)} samples")
+                    logger.debug(
+                        f"Split '{split_name}' has {len(split_dataset)} samples"
+                    )
             else:
                 logger.debug(f"Loaded single dataset with {len(dataset)} samples")
             return dataset
@@ -115,38 +122,45 @@ class DataCleaner:
 
             logger.info(f"\nProcessing split: {split_name}")
             # Check if this is an SFT dataset by looking for 'messages' column
-            is_sft = 'messages' in split_dataset.features and 'text' not in split_dataset.features
+            is_sft = (
+                "messages" in split_dataset.features
+                and "text" not in split_dataset.features
+            )
 
             for idx, sample in tqdm(
                 enumerate(split_dataset),
                 desc=f"Processing {split_name} split",
-                total=len(split_dataset)
+                total=len(split_dataset),
             ):
                 if is_sft:
                     # Process SFT dataset
                     has_reusable_lang = False
-                    for turn in sample['messages']:
-                        text = turn['content']
+                    for turn in sample["messages"]:
+                        text = turn["content"]
                         detected_langs = self.detect_languages(text)
                         if detected_langs.intersection(self.language_ranges.keys()):
                             has_reusable_lang = True
                             break
-                    
+
                     if has_reusable_lang:
                         reusable_count += 1
                         if self.samples_with_reusable_langs_file:
-                            self._log_reusable_sample(split_name, idx, detected_langs, str(sample['messages']))
+                            self._log_reusable_sample(
+                                split_name, idx, detected_langs, str(sample["messages"])
+                            )
                     else:
                         filtered_samples.append(sample)
                 else:
                     # Process regular dataset
-                    text = sample['text']
+                    text = sample["text"]
                     detected_langs = self.detect_languages(text)
-                    
+
                     if detected_langs.intersection(self.language_ranges.keys()):
                         reusable_count += 1
                         if self.samples_with_reusable_langs_file:
-                            self._log_reusable_sample(split_name, idx, detected_langs, text)
+                            self._log_reusable_sample(
+                                split_name, idx, detected_langs, text
+                            )
                     else:
                         filtered_samples.append(sample)
 
@@ -158,7 +172,7 @@ class DataCleaner:
             logger.info(f"- Samples with reusable languages: {reusable_count}")
             logger.info(f"- Remaining samples: {len(filtered_samples)}")
 
-        logger.info(f"\nOverall filtering complete:")
+        logger.info("\nOverall filtering complete:")
         logger.info(f"- Total original samples: {total_samples}")
         logger.info(f"- Total samples with reusable languages: {total_reusable_count}")
         remaining = sum(len(split) for split in filtered_dataset.values())
@@ -173,35 +187,37 @@ class DataCleaner:
         total_samples = len(self.dataset)
 
         # Check if this is an SFT dataset by looking for 'messages' column
-        is_sft = 'messages' in self.dataset.features and 'text' not in self.dataset.features
+        is_sft = (
+            "messages" in self.dataset.features and "text" not in self.dataset.features
+        )
 
         logger.info(f"Starting with {total_samples} total samples")
         for idx, sample in tqdm(
-            enumerate(self.dataset),
-            desc="Processing dataset",
-            total=total_samples
+            enumerate(self.dataset), desc="Processing dataset", total=total_samples
         ):
             if is_sft:
                 # Process SFT dataset
                 has_reusable_lang = False
-                for turn in sample['messages']:
-                    text = turn['content']
+                for turn in sample["messages"]:
+                    text = turn["content"]
                     detected_langs = self.detect_languages(text)
                     if detected_langs.intersection(self.language_ranges.keys()):
                         has_reusable_lang = True
                         break
-                
+
                 if has_reusable_lang:
                     reusable_count += 1
                     if self.samples_with_reusable_langs_file:
-                        self._log_reusable_sample(None, idx, detected_langs, str(sample['messages']))
+                        self._log_reusable_sample(
+                            None, idx, detected_langs, str(sample["messages"])
+                        )
                 else:
                     filtered_samples.append(sample)
             else:
                 # Process regular dataset
-                text = sample['text']
+                text = sample["text"]
                 detected_langs = self.detect_languages(text)
-                
+
                 if detected_langs.intersection(self.language_ranges.keys()):
                     reusable_count += 1
                     if self.samples_with_reusable_langs_file:
@@ -211,7 +227,7 @@ class DataCleaner:
 
         self.filtered_dataset = Dataset.from_list(filtered_samples)
 
-        logger.info(f"\nFiltering complete:")
+        logger.info("\nFiltering complete:")
         logger.info(f"- Original samples: {total_samples}")
         logger.info(f"- Samples with reusable languages: {reusable_count}")
         logger.info(f"- Remaining samples: {len(filtered_samples)}")
@@ -221,7 +237,9 @@ class DataCleaner:
         if split_name:
             self.samples_with_reusable_langs_file.write(f"Split: {split_name}\n")
         self.samples_with_reusable_langs_file.write(f"Index: {idx}\n")
-        self.samples_with_reusable_langs_file.write(f"Detected Languages: {', '.join(detected_langs)}\n")
+        self.samples_with_reusable_langs_file.write(
+            f"Detected Languages: {', '.join(detected_langs)}\n"
+        )
         self.samples_with_reusable_langs_file.write(f"Text: {text}\n")
         self.samples_with_reusable_langs_file.write("-" * 80 + "\n")
         self.samples_with_reusable_langs_file.flush()
