@@ -10,7 +10,7 @@ from .dynamic_tokenizer import create_dynamic_tokenizer
 import json
 import yaml
 
-from huggingface_hub import login
+from huggingface_hub import login, snapshot_download
 
 from .logger_config import setup_logger
 
@@ -257,6 +257,34 @@ class RBPETokenizer:
 
     @classmethod
     def from_pretrained(cls, pretrained_path: str, **kwargs) -> PreTrainedTokenizerBase:
+        """Load a previously-saved R-BPE tokenizer.
+
+        Args:
+            pretrained_path (str): A local directory produced by save_pretrained,
+                or a Hugging Face Hub repo id to a repo with an R-BPE tokenizer contents.
+            **kwargs: For Hub loads, cache_dir, token, revision, and local_files_only
+                are forwarded to snapshot_download.
+
+        Returns:
+            PreTrainedTokenizerBase: The loaded tokenizer.
+        """
+        if not os.path.isdir(pretrained_path):
+            pretrained_path = snapshot_download(
+                repo_id=pretrained_path,
+                allow_patterns=[
+                    "tokenizer_config.json",
+                    "tokenizer.json",
+                    "special_tokens_map.json",
+                    "metadata/*",
+                    "new_tokenizer/*",
+                    "old_tokenizer/*",
+                ],
+                cache_dir=kwargs.pop("cache_dir", None),
+                token=kwargs.pop("token", None),
+                revision=kwargs.pop("revision", None),
+                local_files_only=kwargs.pop("local_files_only", False),
+            )
+
         config_path = os.path.join(pretrained_path, "tokenizer_config.json")
         with open(config_path, "r", encoding="utf-8") as f:
             config = json.load(f)
@@ -266,25 +294,25 @@ class RBPETokenizer:
         mapping_tokenizer_dict = json.loads(mapping_tokenizer_state)
 
         # Rebuild MappingTokenizer from JSON, but override its paths to the bundled ones
-        mapping_tokenizer_dict["new_tokenizer_path"] = os.path.join(
-            pretrained_path, "new_tokenizer"
-        )
-        mapping_tokenizer_dict["old_tokenizer_path"] = os.path.join(
-            pretrained_path, "old_tokenizer"
-        )
+        new_tokenizer_path = os.path.join(pretrained_path, "new_tokenizer")
+        old_tokenizer_path = os.path.join(pretrained_path, "old_tokenizer")
+        mapping_tokenizer_dict["new_tokenizer_path"] = new_tokenizer_path
+        mapping_tokenizer_dict["old_tokenizer_path"] = old_tokenizer_path
         mapping_tokenizer = MappingTokenizer.from_json(
             json.dumps(mapping_tokenizer_dict)
         )
 
+        # Resolve the base tokenizer from the bundled snapshot so loading does not
+        # depend on Hub access to the original (possibly gated) model_id.
         base_tokenizer_class = AutoTokenizer.from_pretrained(
-            custom_tokenizer_config["model_id"]
+            old_tokenizer_path
         ).__class__
         dynamic_tokenizer_class = create_dynamic_tokenizer(
             base_tokenizer_class, mapping_tokenizer, custom_tokenizer_config
         )
 
         return dynamic_tokenizer_class(
-            model_id=custom_tokenizer_config["model_id"],
+            model_id=old_tokenizer_path,
             mapping_tokenizer=mapping_tokenizer,
             **kwargs,
         )

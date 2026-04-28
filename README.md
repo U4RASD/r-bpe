@@ -135,6 +135,41 @@ print('Encoded:', encoded)
 print('Decoded:', decoded)
 ```
 
+### Shipping an R-BPE tokenizer with a model
+
+When publishing a model trained with an R-BPE tokenizer, copy the *contents* of the saved tokenizer directory into the model directory. The rbpe `tokenizer_config.json`, `tokenizer.json`, and `special_tokens_map.json` overwrite the originals saved with the model.
+
+```
+my-model/
+├── config.json
+├── model-00001-of-00004.safetensors
+├── ...
+├── tokenizer_config.json
+├── tokenizer.json
+├── special_tokens_map.json
+├── metadata/
+├── new_tokenizer/
+└── old_tokenizer/
+```
+
+Once setup this way, `AutoModelForCausalLM.from_pretrained(repo_id)` and `RBPETokenizer.from_pretrained(repo_id)` both resolve from the same root.
+
+
+### Loading from the Hugging Face Hub
+
+`RBPETokenizer.from_pretrained` accepts a Hub repo id, just like `AutoTokenizer.from_pretrained`, and supports the usual `cache_dir`, `token`, `revision`, and `local_files_only` kwargs.
+
+```python
+from rbpe import RBPETokenizer
+from transformers import AutoModelForCausalLM
+import torch
+
+repo_id = 'user/repo'
+
+model = AutoModelForCausalLM.from_pretrained(repo_id, dtype=torch.bfloat16, device_map='auto')
+tokenizer = RBPETokenizer.from_pretrained(repo_id)
+```
+
 ## Citation
 
 If you use R-BPE, please cite:
